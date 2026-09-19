@@ -1,0 +1,10 @@
+# Единственная прямая зависимость: native OS credential backend, без plaintext fallback.
+keyring==25.7.0
+# Общие зависимости проверенного Python 3.12 окружения. Платформенные extras keyring
+# устанавливаются по environment markers поставщика; native OS acceptance отдельно.
+jaraco.classes==3.4.0
+jaraco.context==6.1.2
+jaraco.functools==4.6.0
+more-itertools==11.1.0
+# Windows не содержит системной IANA tzdb, необходимой для zoneinfo.
+tzdata==2026.4; sys_platform == "win32"

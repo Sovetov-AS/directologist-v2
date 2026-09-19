@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "cards": [
+    {
+      "id": "diagnosis",
+      "version": 1,
+      "checked_at": "2026-09-18",
+      "primary_source": "https://yandex.ru/support/metrica/ru/reports/attribution-model",
+      "own_v1_origin": "direct-analytics/direct-bids",
+      "sha256": "a15c38832f09e146bb8bac633be6baf02595fa3b4aae25727b4459ce9310d6b6",
+      "business_effect": "NOT_CLAIMED"
+    },
+    {
+      "id": "demand",
+      "version": 1,
+      "checked_at": "2026-09-18",
+      "primary_source": "https://yandex.ru/support/direct/ru/keywords/negative-keywords",
+      "own_v1_origin": "semantic-core/direct-search-queries",
+      "sha256": "615243e49217f45a456edd2bb3c29b1d7e860378fe78fd0ba74856ab279b86ca",
+      "business_effect": "NOT_CLAIMED"
+    },
+    {
+      "id": "ads",
+      "version": 1,
+      "checked_at": "2026-09-18",
+      "primary_source": "https://yandex.ru/support/direct/ru/efficiency/text-and-title",
+      "own_v1_origin": "direct-ads",
+      "sha256": "fdd2243f5c26954769ad7bfff6bd1669463aea6eb0606e040f8b2e14cb4758f3",
+      "business_effect": "NOT_CLAIMED"
+    }
+  ]
+}
