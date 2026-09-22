@@ -154,7 +154,7 @@ def validate_profile(data: dict, project_id: str) -> str:
             raise ContractError("Неподдерживаемый набор ресурсов подключения.")
         for key, value in resources.items():
             values = value if key.endswith("_ids") else [value]
-            if not isinstance(values, list) or not values:
+            if not isinstance(values, list) or (not values and not (provider == "direct" and key == "campaign_ids")):
                 raise ContractError("Ожидался непустой список ресурсов.")
             if any(not isinstance(v, str) or not v or len(v) > 128 or any(ord(ch) < 32 for ch in v) for v in values):
                 raise ContractError("Идентификатор ресурса должен быть непустой строкой.")

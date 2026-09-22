@@ -25,14 +25,14 @@ def retry_seconds(headers, field="Retry-After", default=60):
 
 
 class ReadHTTP:
-    def __init__(self, bridge_origin=None):
-        self.transport = Transport(bridge_origin)
+    def __init__(self, bridge_origin=None, direct_environment="production"):
+        self.transport = Transport(bridge_origin, direct_environment)
 
     def request(self, source, credential, *, body=None, query=None, client_login=None, bridge_id=None, auth_scheme="Bearer"):
         headers = {"Authorization": auth_scheme + " " + credential.value, "Accept-Language": "ru",
                    "User-Agent": "directologist/0.1", "Content-Type": "application/json"}
         if source == "direct":
-            url = "https://api.direct.yandex.com/json/v501/reports"
+            url = self.transport.direct_origin + "/json/v501/reports"
             if not client_login or not re.fullmatch(r"[a-zA-Z0-9@._-]{1,128}", client_login):
                 raise ContractError("Нет проверенного Client-Login.")
             headers.update({"Client-Login": client_login, "processingMode": "auto", "skipReportHeader": "true",
@@ -159,17 +159,19 @@ def normalize_crm(raw, start, end):
     return [row], {"cohort": cohort, "missing_configuration_count": len(missing)}
 
 
-def collect(context, source, credential, config, *, start, end, goal=None, attribution=None, vat="excluded", ttl_seconds=3600, http=None):
+def collect(context, source, credential, config, *, start, end, goal=None, attribution=None, vat="excluded", ttl_seconds=3600, http=None, campaign_ids=None):
     period(start, end)
     bindings = context.profile["bindings"]
     if source not in {"direct", "metrika", "crm"} or source not in bindings:
         raise ContractError("Источник не подключён для этого проекта.")
     resources = bindings[source]["resources"]
-    http = http or ReadHTTP(config.get("origin"))
+    if source == "direct" and campaign_ids is not None: resources = resources | {"campaign_ids": campaign_ids}
+    http = http or ReadHTTP(config.get("origin"), config.get("environment", "production"))
     sampled = False
     if source == "direct":
         payload = direct_payload(resources.get("campaign_ids"), start, end, goal, attribution, vat)
-        account = direct_result(http.transport.request("https://api.direct.yandex.com/json/v5/clients", credential,
+        api_origin = "https://api-sandbox.direct.yandex.com" if config.get("environment") == "sandbox" else "https://api.direct.yandex.com"
+        account = direct_result(http.transport.request(api_origin + "/json/v5/clients", credential,
             body={"method": "get", "params": {"FieldNames": ["Currency"]}}, client_login=resources["client_login"]))
         clients = account.get("Clients", [])
         if len(clients) != 1 or not re.fullmatch(r"[A-Z]{3}", clients[0].get("Currency", "")):
@@ -228,6 +230,15 @@ def collect_configured(context, **options):
             wait = store.connection.execute("SELECT retry_at,state FROM report_waits WHERE key=?", (request_key,)).fetchone()
             if wait and wait[0] > time.time():
                 return {"state": wait[1], "retry_after_seconds": max(1, int(wait[0] - time.time())), "autonomous_writes": False}
+    if source == "direct":
+        from .. import direct_policy
+        with Store(context) as scope_store:
+            try:
+                grant = direct_policy.current(scope_store, active=False)
+            except ContractError:
+                grant = None
+            if grant and grant["environment"] == config.get("environment", "production"):
+                options["campaign_ids"] = list(map(str, direct_policy.campaigns(scope_store, grant)))
     secret = SecretStore(context.project_id).get(source, binding["connection_id"])
     if secret is None:
         raise ContractError("Ключ подключения отсутствует в Keychain.")

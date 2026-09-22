@@ -1,0 +1,53 @@
+{
+  "request_id": "search-launch-v1",
+  "campaign": {
+    "name": "Пример поисковой кампании",
+    "start_date": "2000-01-01",
+    "end_date": "2000-01-07",
+    "daily_budget_micros": 300000000,
+    "counter_ids": [],
+    "negative_keywords": []
+  },
+  "groups": [
+    {
+      "name": "Основная услуга",
+      "region_ids": [
+        225
+      ],
+      "negative_keywords": [],
+      "keywords": [
+        {
+          "text": "заказать пример услуги",
+          "bid_micros": 10000000
+        }
+      ],
+      "ads": [
+        {
+          "titles": [
+            "Пример заголовка услуги"
+          ],
+          "texts": [
+            "Пример текста. Заменить проверенным предложением."
+          ],
+          "href": "https://example.org/"
+        }
+      ]
+    }
+  ],
+  "autotarget_bid_micros": 10000000,
+  "autotargeting": {
+    "categories": {
+      "Exact": "YES",
+      "Narrow": "YES",
+      "Alternative": "NO",
+      "Accessory": "NO",
+      "Broader": "NO"
+    },
+    "brands": {
+      "WithoutBrands": "YES",
+      "WithAdvertiserBrand": "YES",
+      "WithCompetitorsBrand": "NO"
+    }
+  },
+  "auto_start": true
+}

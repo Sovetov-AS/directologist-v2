@@ -1,0 +1,8 @@
+{
+  "request_id": "bid-change-v1",
+  "action": "keyword.bid",
+  "object_id": 123456,
+  "params": {
+    "bid_micros": 10000000
+  }
+}

@@ -55,7 +55,9 @@ def origin(value: str) -> str:
 
 
 class Transport:
-    def __init__(self, bridge_origin=None):
+    def __init__(self, bridge_origin=None, direct_environment="production"):
+        if direct_environment not in {"production", "sandbox"}: raise ContractError("Некорректная среда Direct.")
+        self.direct_origin = "https://api.direct.yandex.com" if direct_environment == "production" else "https://api-sandbox.direct.yandex.com"
         self.bridge_origin = origin(bridge_origin) if bridge_origin else None
         self.opener = urllib.request.build_opener(
             urllib.request.ProxyHandler({}), NoRedirect(),
@@ -65,7 +67,7 @@ class Transport:
         parts = urllib.parse.urlsplit(url)
         base = urllib.parse.urlunsplit((parts.scheme, parts.netloc, "", "", ""))
         allowed = (
-            (base == "https://api.direct.yandex.com" and parts.path in {"/json/v5/clients", "/json/v5/campaigns"}
+            (base == self.direct_origin and parts.path in {"/json/v5/clients", "/json/v5/campaigns"}
              and isinstance(body, dict) and body.get("method") == "get")
             or (base == "https://api-metrika.yandex.net" and body is None
                 and re.fullmatch(r"/management/v1/(counters|counter/[0-9]+/goals)", parts.path))
@@ -151,7 +153,8 @@ class Adapter:
                 return Probe("AWAITING_COST_APPROVAL", {"folder_id": config["folder_id"]})
             if provider == "direct":
                 login = config.get("client_login")
-                data = direct_result(self.transport.request("https://api.direct.yandex.com/json/v5/clients",
+                api_origin = "https://api-sandbox.direct.yandex.com" if config.get("environment") == "sandbox" else "https://api.direct.yandex.com"
+                data = direct_result(self.transport.request(api_origin + "/json/v5/clients",
                     credential, body={"method": "get", "params": {"FieldNames": ["Login"]}}, client_login=login))
                 logins = ids(data.get("Clients"), "Login", numeric=False)
                 selected = choose("Кабинет Директа", logins, False)
@@ -160,7 +163,7 @@ class Adapter:
                 campaigns = []
                 offset = 0
                 for _ in range(20):
-                    page = direct_result(self.transport.request("https://api.direct.yandex.com/json/v5/campaigns",
+                    page = direct_result(self.transport.request(api_origin + "/json/v5/campaigns",
                         credential, client_login=selected[0], body={"method": "get", "params": {
                             "SelectionCriteria": {}, "FieldNames": ["Id"], "Page": {"Limit": 1000, "Offset": offset}}}))
                     campaigns.extend(ids(page.get("Campaigns"), "Id"))
@@ -175,7 +178,7 @@ class Adapter:
                 if len(set(campaigns)) != len(campaigns):
                     raise ProbeError()
                 chosen = choose("Кампании", campaigns, True)
-                return Probe("CHECKED", {"client_login": selected[0], "campaign_ids": chosen}) if chosen else Probe("NO_RESOURCES")
+                return Probe("CHECKED", {"client_login": selected[0], "campaign_ids": chosen})
             if provider == "metrika":
                 counters = []
                 for page in range(20):

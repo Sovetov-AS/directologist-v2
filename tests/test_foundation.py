@@ -71,7 +71,7 @@ class FoundationTests(unittest.TestCase):
             self.assertNotIn("Traceback", result.stderr)
 
     def test_resource_contract(self):
-        for value in ([], ["same", "same"], [1], "not-list", ["bad\n"]):
+        for value in (["same", "same"], [1], "not-list", ["bad\n"]):
             data = copy.deepcopy(self.profile)
             data["bindings"]["direct"]["resources"]["campaign_ids"] = value
             self.write_profile(data)

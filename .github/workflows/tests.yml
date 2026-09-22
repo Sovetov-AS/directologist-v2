@@ -21,3 +21,4 @@ jobs:
       - run: python -m pip check
       - run: python -B -m unittest discover -s tests -p 'test_*.py' -v
       - run: python -B scripts/demo_cycle.py
+      - run: python -B scripts/demo_autonomy.py

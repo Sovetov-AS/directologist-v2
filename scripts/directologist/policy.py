@@ -10,7 +10,7 @@ FIELDS={'schema_version','mode','project_id','context_hash','version','resources
 def validate(context,grant,clock=None):
     if not isinstance(grant,dict) or set(grant)!=FIELDS or type(grant['schema_version']) is not int or grant['schema_version']!=1:
         raise ContractError('Неподдерживаемая политика.')
-    if grant['mode']!='SIMULATION':raise ContractError('Рабочий допуск отключён: граница изоляции не доказана.')
+    if grant['mode']!='SIMULATION':raise ContractError('Контракт v1 предназначен для симуляции; реальный допуск — DirectGrant v2.')
     if grant['project_id']!=context.project_id or grant['context_hash']!=context.context_hash:raise ContractError('Чужая политика.')
     identifier(grant['version'])
     for key in ('resources','capabilities'):
@@ -58,5 +58,8 @@ def check(store,plan):
     return grant
 
 def capabilities():
-    return {'live_write_enabled':False,'reason':'UNVERIFIED_BOUNDARY_AND_API',
-            'operations':{k:{'simulation':'LOCAL_TESTED','live':'DISABLED'} for k in sorted(CAPABILITIES)}}
+    from .direct_policy import OPERATIONS
+    return {'live_write_enabled':False,'reason':'PROJECT_GRANT_REQUIRED_CHECK_CONTEXT',
+            'operations':{k:{'simulation':'LOCAL_TESTED','live':'LEGACY_SIMULATION_ONLY'} for k in sorted(CAPABILITIES)},
+            'direct_v2':{'entrypoint':'direct','mode':'TRUSTED_LOCAL','status':'IMPLEMENTED_REQUIRES_PROJECT_GRANT',
+                         'operations':sorted(OPERATIONS),'api_acceptance':'NOT_VERIFIED_ON_LIVE_ACCOUNT'}}

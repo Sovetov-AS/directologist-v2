@@ -26,6 +26,8 @@ def parser() -> argparse.ArgumentParser:
                         help="Корень проекта; по умолчанию каталог установленного исходника, не cwd.")
     result.add_argument("--project", required=True, help="Явный ID проекта, например my-project.")
     commands = result.add_subparsers(dest="command", required=True)
+    from .direct_cli import add_parser
+    add_parser(commands)
     project = commands.add_parser("project-create", help="Создать отдельный проект без аккаунтов и разрешений.")
     project.add_argument("--name", required=True)
     project.add_argument("--timezone", required=True)
@@ -41,7 +43,8 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("context", help="Восстановить контекст рекламной работы и версии методик.")
     proposal = commands.add_parser("propose", help="Проверить и сохранить предложение без исполнения.")
     proposal.add_argument("--input", type=Path, required=True)
-    commands.add_parser("setup", help="Единый мастер подключений; только в пользовательском терминале.")
+    setup_parser=commands.add_parser("setup", help="Единый мастер подключений; только в пользовательском терминале.")
+    setup_parser.add_argument("--direct-environment",choices=("production","sandbox"),default="production")
     connections = commands.add_parser("connections", help="Состояние площадок и восстановление публикации привязок.")
     connections.add_argument("operation", choices=("status", "recover"))
     collection = commands.add_parser("collect", help="Получить read-only отчёт из настроенного источника.")
@@ -86,6 +89,9 @@ def execute(args: argparse.Namespace) -> dict:
         from .onboarding import create
         return create(args.workspace, args.project, args.name, args.timezone)
     context = load_project(args.workspace, args.project)
+    if args.command == "direct":
+        from .direct_cli import execute as direct_execute
+        return direct_execute(context,args)
     if args.command == "lesson":
         from .learning import Learning
         from .contracts import read_json
@@ -146,7 +152,7 @@ def execute(args: argparse.Namespace) -> dict:
     if args.command in {"setup", "connections"}:
         from .setup import wizard, connection_status, recover_connections
         if args.command == "setup":
-            return wizard(context)
+            return wizard(context,direct_environment=args.direct_environment)
         return {"status": connection_status, "recover": recover_connections}[args.operation](context)
     if args.command == "validate":
         return {"schema_version": 1, "project_id": context.project_id, "valid": True,

@@ -75,7 +75,7 @@ def save(context,data):
 def recover(context):
     result={'project_id':context.project_id,'context_hash':context.context_hash,'binding_version':context.profile['binding_version'],
             'providers':sorted(context.profile['bindings']), 'knowledge':knowledge(context), 'decisions':[], 'unresolved_operations':[],
-            'autonomous_writes':False,'live_write_mode':'DISABLED_UNVERIFIED_BOUNDARY'}
+            'autonomous_writes':False,'live_write_mode':'OWNER_GRANT_REQUIRED'}
     if context.database.exists():
         with Store(context,read_only=True) as store:
             tables={r[0] for r in store.connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -84,4 +84,16 @@ def recover(context):
                 result['decisions']=[{'id':r['id'],'created_at':r['created_at'],'proposal':json.loads(r['data'])} for r in store.connection.execute('SELECT * FROM decisions ORDER BY created_at DESC LIMIT 5')]
             if 'executions' in tables:
                 result['unresolved_operations']=[dict(r) for r in store.connection.execute("SELECT plan_hash,status FROM executions WHERE status!='CONFIRMED'")]
+            if 'direct_steps' in tables:
+                result['unresolved_direct_operations']=[dict(r) for r in store.connection.execute("SELECT request_id,status,object_id,error FROM direct_steps WHERE status IN ('STARTED','ACKNOWLEDGED','UNKNOWN','PARTIAL')")]
+            if 'direct_grants' in tables:
+                from . import direct_policy
+                row=store.connection.execute("SELECT g.* FROM direct_grants g JOIN metadata m ON m.key='active_direct_grant' AND m.value=g.version").fetchone()
+                if row:
+                    result['direct_grant']={'version':row['version'],'sha256':row['hash'],'revoked':bool(row['revoked'])}
+                    try:
+                        g=direct_policy.validate(context,json.loads(row['data']))
+                        enabled=not row['revoked'] and not result['recovery_required'] and not result.get('unresolved_direct_operations')
+                        result.update(autonomous_writes=bool(enabled),live_write_mode='TRUSTED_LOCAL' if enabled else 'BLOCKED',environment=g['environment'])
+                    except ContractError:result['live_write_mode']='INVALID_OR_EXPIRED_GRANT'
     return result

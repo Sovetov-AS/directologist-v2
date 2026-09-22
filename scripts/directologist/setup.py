@@ -184,6 +184,9 @@ def configure(context, provider, credential, config, choose, secrets, adapter):
         raise ContractError("Подключение относится к другому проекту.")
     expected = {"direct": {"client_login"}, "metrika": set(),
                 "wordstat": {"auth_scheme", "folder_id"}, "crm": {"origin"}}
+    if provider == "direct" and isinstance(config, dict) and "environment" in config:
+        expected["direct"].add("environment")
+        if config["environment"] not in {"production", "sandbox"}: raise ContractError("Неизвестная среда Direct.")
     if not isinstance(config, dict) or set(config) != expected[provider]:
         raise ContractError("Неподдерживаемая конфигурация подключения.")
     if credential.value in canonical(config):
@@ -220,10 +223,10 @@ def configure(context, provider, credential, config, choose, secrets, adapter):
         raise
 
 
-def wizard(context, terminal=None, secret_store=None, adapter_factory=None):
+def wizard(context, terminal=None, secret_store=None, adapter_factory=None, direct_environment="production"):
     terminal = terminal or Terminal()  # Must fail before opening Keychain when no TTY.
     secrets = secret_store or SecretStore(context.project_id)
-    factory = adapter_factory or (lambda config: Adapter(Transport(config.get("origin"))))
+    factory = adapter_factory or (lambda config: Adapter(Transport(config.get("origin"), config.get("environment", "production"))))
     with setup_lock(context):
         terminal.say("Настройка проекта " + context.project_id + ". Ключи вводите только в скрытое поле.")
         for provider in ORDER:
@@ -244,6 +247,7 @@ def wizard(context, terminal=None, secret_store=None, adapter_factory=None):
                 if login and not re.fullmatch(r"[a-zA-Z0-9@._-]{1,128}", login):
                     raise ContractError("Некорректный логин кабинета.")
                 config = {"client_login": login}
+                if direct_environment == "sandbox": config["environment"] = "sandbox"
             elif provider == "wordstat":
                 scheme = terminal.ask("Тип доступа: Api-Key или Bearer: ")
                 folder = terminal.ask("folderId проекта Yandex Cloud: ")
