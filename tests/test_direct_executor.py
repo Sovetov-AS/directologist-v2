@@ -30,6 +30,11 @@ class FakeDirect:
             return oid
         key={'campaigns':'Campaigns','adgroups':'AdGroups','ads':'Ads','keywords':'Keywords','keywordbids':'KeywordBids'}[service]
         value=copy.deepcopy(params[key][0]);oid=value.get('Id',value.get('KeywordId'))
+        if service=='campaigns':
+            weekly=value.get('UnifiedCampaign',{}).get('BiddingStrategy',{}).get('Search',{}).get('HighestPosition',{}).get('WeeklySpendLimit')
+            if weekly is not None:
+                if 'DailyBudget' in value:raise DirectFailure('REJECTED',4004,fields=('DailyBudget','WeeklySpendLimit'))
+                value['DailyBudget']={'Amount':weekly//7,'Mode':'STANDARD'}
         if method=='add':oid=self.next_id;self.next_id+=1
         if service=='keywordbids':self.objects['keywords'][oid]['Bid']=value['SearchBid'];self.objects['keywords'][oid].update({k:v for k,v in value.items() if k=='AutotargetingSearchBidIsAuto'});return oid
         if 'ResponsiveAd' in value:
@@ -58,7 +63,7 @@ def campaign():
     today=datetime.now(ZoneInfo("Europe/Moscow")).date()
     return {'Id':1,'Name':'Synthetic','Type':'UNIFIED_CAMPAIGN','State':'SUSPENDED','Status':'ACCEPTED','StartDate':str(today),
             'EndDate':str(today+timedelta(days=2)),'DailyBudget':{'Amount':100000000,'Mode':'STANDARD'},
-            'UnifiedCampaign':{'Settings':[{'Option':'ENABLE_AREA_OF_INTEREST_TARGETING','Value':'NO'}],'BiddingStrategy':{'Search':{'BiddingStrategyType':'HIGHEST_POSITION','PlacementTypes':{'SearchResults':'YES','ProductGallery':'NO','DynamicPlaces':'NO','Maps':'NO','SearchOrganizationList':'NO'}},'Network':{'BiddingStrategyType':'SERVING_OFF'}}}}
+            'UnifiedCampaign':{'Settings':[{'Option':'ENABLE_AREA_OF_INTEREST_TARGETING','Value':'NO'}],'BiddingStrategy':{'Search':{'BiddingStrategyType':'HIGHEST_POSITION','HighestPosition':{'WeeklySpendLimit':700000000},'PlacementTypes':{'SearchResults':'YES','ProductGallery':'NO','DynamicPlaces':'NO','Maps':'NO','SearchOrganizationList':'NO'}},'Network':{'BiddingStrategyType':'SERVING_OFF'}}}}
 
 class DirectExecutorTests(unittest.TestCase):
     def setUp(self):

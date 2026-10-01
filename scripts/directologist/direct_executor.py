@@ -1,13 +1,13 @@
 """Journaled real Direct operations under an explicit trusted-local project grant."""
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from . import direct_policy as policy
 from .adapters.direct_api import DirectAPI, DirectFailure, positive_id
 from .analytics import instant
 from .contracts import ContractError, canonical, digest
-from .direct_operations import SERVICE, compile_request, normalize, subset, check_bid, instant_date
+from .direct_operations import SERVICE, SEARCH_PLACEMENTS, compile_request, normalize, subset, check_bid, instant_date, validate_end_date, weekly_budget
 from .secrets import SecretStore
 from .setup import setup_lock
 from .storage import Store, now
@@ -65,7 +65,16 @@ class DirectExecutor:
             ids=policy.campaigns(self.store,grant)
             if len(ids)+(request['action']=='campaign.create')>grant['max_campaigns']:
                 raise ContractError('OWNER_REQUIRED: лимит кампаний.')
-            spent=api.spend(ids,instant_date(grant['starts_at']).isoformat(),datetime.now(ZoneInfo('Europe/Moscow')).date().isoformat())
+            today=datetime.now(ZoneInfo('Europe/Moscow')).date()
+            grant_start=instant_date(grant['starts_at']).isoformat()
+            cost_rows=None
+            if 'budget_vat_basis_points' in grant:
+                monday=today-timedelta(days=today.weekday())
+                # One response prevents later weekly totals reducing a reserve while
+                # an earlier grant-period total still omits the same clicks.
+                cost_rows=api.spend_rows(ids,min(grant_start,monday.isoformat()),today.isoformat())
+                spent=sum(row['Cost'] for row in cost_rows if row['Date']>=grant_start)
+            else:spent=api.spend(ids,grant_start,today.isoformat())
             if spent+grant['spend_buffer_micros']>=grant['max_total_budget_micros']:
                 raise ContractError('BUDGET_STOP: выполнить direct guard; лимит с резервом исчерпан.')
             if ids or request['action']=='campaign.create':
@@ -73,24 +82,50 @@ class DirectExecutor:
                 today=datetime.now(ZoneInfo("Europe/Moscow")).date()
                 for cid in ids:
                     campaign=normalize(api.one('campaigns',cid))
+                    if request['action']=='campaign.search-profile' and cid==request['object_id']:
+                        campaign=plan['expected']
                     amount=campaign.get('DailyBudget',{}).get('Amount')
                     if type(amount) is not int or amount<=0:raise ContractError('Нужна проверенная ручная стратегия и дневной бюджет каждой кампании.')
                     if request['action']=='campaign.budget' and cid==request['object_id']:amount=request['params']['daily_budget_micros']
-                    from datetime import date
+                    # Do not let a lower legacy DailyBudget hide a larger EPK weekly limit.
+                    amount=max(amount,(weekly_budget(campaign)+6)//7)
                     end=campaign.get("EndDate")
                     if not end:raise ContractError("Не задана дата остановки кампании.")
-                    allocation+=amount*max(7,(date.fromisoformat(end)-today).days)
+                    first=max(today,date.fromisoformat(campaign.get('StartDate',today.isoformat())))
+                    if 'budget_vat_basis_points' in grant:
+                        allocation+=self._remaining_weekly(cost_rows,cid,amount*7,first,date.fromisoformat(end),today,grant)
+                    else:allocation+=amount*max(7,(date.fromisoformat(end)-first).days+1)
                     amounts.append(amount)
                 if request['action']=='campaign.create':
-                    from datetime import date
                     amount=request['params']['daily_budget_micros'];amounts.append(amount)
-                    allocation+=amount*max(7,(date.fromisoformat(request['params']['end_date'])-today).days)
+                    first=max(today,date.fromisoformat(request['params']['start_date']))
+                    end=date.fromisoformat(request['params']['end_date'])
+                    if 'budget_vat_basis_points' in grant:
+                        allocation+=self._remaining_weekly(cost_rows,None,amount*7,first,end,today,grant)
+                    else:allocation+=amount*max(7,(end-first).days+1)
                 if allocation+spent+grant['spend_buffer_micros']>grant['max_total_budget_micros']:
                     raise ContractError('OWNER_REQUIRED: резерв бюджетов на оставшийся период превышает общий предел.')
                 if sum(amounts)>grant['max_daily_budget_micros']:raise ContractError('OWNER_REQUIRED: суммарные дневные бюджеты превышены.')
             cid=plan['campaign_id']
             if request['action']=='campaign.resume' or (cid and api.one('campaigns',cid).get('State')=='ON'):
                 self.audit_launch(api,cid,grant)
+    @staticmethod
+    def _remaining_weekly(cost_rows,cid,weekly,first,end,today,grant):
+        """Reserve remaining platform calendar weeks in the grant's gross currency.
+
+        Only an explicitly approved VAT rate enables this mode. Reports are gross;
+        rounding is upwards. Current-week cost is subtracted once from its limit,
+        while all spending within the grant is accounted for separately in _check.
+        """
+        if first>end:raise ContractError('Нет будущего периода показов для резервирования.')
+        monday=first-timedelta(days=first.weekday())
+        last_monday=end-timedelta(days=end.weekday())
+        weeks=(last_monday-monday).days//7+1
+        gross=(weekly*(10000+grant['budget_vat_basis_points'])+9999)//10000
+        consumed=0
+        if cid is not None and first<=today:
+            consumed=sum(row['Cost'] for row in cost_rows if row['CampaignId']==cid and monday.isoformat()<=row['Date']<=today.isoformat())
+        return gross*(weeks-1)+max(0,gross-consumed)
     def prepare(self,request):
         pause=request.get('action')=='campaign.pause'
         grant=policy.current(self.store,active=not pause,protective=pause);api=self.api(grant)
@@ -130,7 +165,7 @@ class DirectExecutor:
                 return self.status(key)
             except DirectFailure as exc:
                 code=':'+str(exc.code) if exc.code is not None else ''
-                self._set(key,'REJECTED' if exc.outcome=='REJECTED' else 'UNKNOWN',error=exc.outcome+code)
+                self._set(key,'REJECTED' if exc.outcome=='REJECTED' else 'UNKNOWN',error=exc.outcome+code+exc.diagnostic_suffix)
                 return self.status(key)
             except Exception:
                 self._set(key,'UNKNOWN',error='UNEXPECTED_FAILURE');return self.status(key)
@@ -139,6 +174,7 @@ class DirectExecutor:
         if existing:return existing
         return self.apply(self.prepare(request))
     def _matches(self,plan,after):
+        if plan['request']['action']=='campaign.search-profile':return plan['expected']==after
         if plan['request']['action']=='ad.moderate':return after.get('Status') in plan['expected']['Status']
         if plan['request']['action']=='ad.resume':return after.get('State') in {'ON','OFF'} and after.get('Status')=='ACCEPTED'
         return subset(plan['expected'],after)
@@ -164,12 +200,12 @@ class DirectExecutor:
         strategy=unified.get('BiddingStrategy',{})
         if strategy.get('Search',{}).get('BiddingStrategyType')!='HIGHEST_POSITION' or strategy.get('Network',{}).get('BiddingStrategyType')!='SERVING_OFF':
             raise ContractError('Для этой версии допускается ручной поиск; другие стратегии требуют нового адаптера.')
-        placements={'SearchResults':'YES','ProductGallery':'NO','DynamicPlaces':'NO','Maps':'NO','SearchOrganizationList':'NO'}
-        if not subset(placements,strategy.get('Search',{}).get('PlacementTypes')) or unified.get('Settings',{}).get('ENABLE_AREA_OF_INTEREST_TARGETING')!='NO':
-            raise ContractError('Не подтверждены площадки поиска и отключение расширенного геотаргетинга.')
+        if not subset(SEARCH_PLACEMENTS,strategy.get('Search',{}).get('PlacementTypes')):
+            raise ContractError('Не подтверждены площадки поиска.')
         end=campaign.get('EndDate')
-        if not end or end>instant_date(grant['expires_at']).isoformat() or end<=datetime.now(ZoneInfo('Europe/Moscow')).date().isoformat():
-            raise ContractError('Дата остановки кампании не соответствует допуску.')
+        validate_end_date(end,grant)
+        if weekly_budget(campaign)>grant['max_daily_budget_micros']*7:
+            raise ContractError('Недельный бюджет поиска превышает допуск.')
         groups=api.get('adgroups',campaign_ids=[campaign_id]);ads=api.get('ads',campaign_ids=[campaign_id]);keywords=api.get('keywords',campaign_ids=[campaign_id])
         if not groups or not ads or not keywords:raise ContractError('Кампания ещё не собрана.')
         for group in groups:

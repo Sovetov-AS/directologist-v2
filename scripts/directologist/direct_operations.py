@@ -1,5 +1,6 @@
 """Closed high-level operation compiler; provider payloads are never accepted verbatim."""
-from datetime import date, datetime, timezone
+from copy import deepcopy
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from .contracts import ContractError, canonical, digest, identifier
@@ -8,6 +9,7 @@ from . import direct_policy
 from .adapters.direct_api import positive_id
 
 SERVICE = {'campaign': 'campaigns', 'group': 'adgroups', 'ad': 'ads', 'keyword': 'keywords'}
+SEARCH_PLACEMENTS = {'SearchResults':'YES','ProductGallery':'NO','DynamicPlaces':'NO','Maps':'NO','SearchOrganizationList':'NO'}
 
 
 def exact(data, keys):
@@ -89,16 +91,54 @@ def compile_request(context, grant, request, api, managed):
         counter=context.profile['bindings'].get('metrika',{}).get('resources',{}).get('counter_id')
         if set(map(str,p['counter_ids']))-({counter} if counter else set()):raise ContractError('Счётчик не выбран в подключении Метрики.')
         payload={'Name':text(p['name']),'StartDate':p['start_date'],'EndDate':p['end_date'],
-                 'DailyBudget':{'Amount':p['daily_budget_micros'],'Mode':'STANDARD'},
                  'NegativeKeywords':{'Items':strings(p['negative_keywords'])},
                  'UnifiedCampaign':{'BiddingStrategy':{'Search':{'BiddingStrategyType':'HIGHEST_POSITION',
+                    'HighestPosition':{'WeeklySpendLimit':p['daily_budget_micros']*7},
                     'PlacementTypes':{'SearchResults':'YES','ProductGallery':'NO','DynamicPlaces':'NO','Maps':'NO','SearchOrganizationList':'NO'}},
                     'Network':{'BiddingStrategyType':'SERVING_OFF'}},'AttributionModel':'AUTO',
                     'CounterIds':{'Items':p['counter_ids']},'Settings':[{'Option':'ADD_METRICA_TAG','Value':'YES'},
-                    {'Option':'ENABLE_SITE_MONITORING','Value':'YES'},{'Option':'ENABLE_AREA_OF_INTEREST_TARGETING','Value':'NO'}]}}
-        expected={k:payload[k] for k in ('Name','StartDate','EndDate','DailyBudget','NegativeKeywords')}
+                    {'Option':'ENABLE_SITE_MONITORING','Value':'YES'}]}}
+        expected={k:payload[k] for k in ('Name','StartDate','EndDate','NegativeKeywords')}
+        expected['DailyBudget']={'Amount':p['daily_budget_micros'],'Mode':'STANDARD'}
         expected['UnifiedCampaign']={k:payload['UnifiedCampaign'][k] for k in ('BiddingStrategy','CounterIds')}
         expected['UnifiedCampaign']['Settings']={v['Option']:v['Value'] for v in payload['UnifiedCampaign']['Settings']}
+    elif action=='campaign.search-profile':
+        exact(p,{'start_date','end_date','daily_budget_micros'})
+        if before.get('State')!='SUSPENDED':raise ContractError('Сначала остановить кампанию перед настройкой поискового профиля.')
+        validate_dates(p['start_date'],p['end_date'],grant)
+        validate_budget(p['daily_budget_micros'],grant)
+        # Fail closed if preservation cannot be established from the snapshot.
+        required={'Id','Name','Type','State','Status','StartDate','EndDate','DailyBudget','NegativeKeywords','UnifiedCampaign'}
+        if not required<=set(before):raise ContractError('Неполный снимок кампании для безопасного изменения профиля.')
+        unified=before['UnifiedCampaign']
+        if not isinstance(unified,dict) or not {'BiddingStrategy','Settings','CounterIds','AttributionModel'}<=set(unified):
+            raise ContractError('Неполные параметры ЕПК для сохранения настроек.')
+        strategy=unified['BiddingStrategy'];search=strategy.get('Search',{});network=strategy.get('Network',{})
+        if set(strategy)!={'Search','Network'} or before['DailyBudget'].get('Mode')!='STANDARD':
+            raise ContractError('Неизвестный профиль стратегии или режим дневного бюджета.')
+        if search.get('BiddingStrategyType')!='HIGHEST_POSITION' or network!={'BiddingStrategyType':'SERVING_OFF'}:
+            raise ContractError('Поддержан только ручной поиск с выключенной РСЯ.')
+        if set(search)-{'BiddingStrategyType','PlacementTypes','HighestPosition'}:
+            raise ContractError('Неизвестные параметры ручной стратегии; нужна отдельная проверка.')
+        highest=search.get('HighestPosition',{})
+        if set(highest)!={'WeeklySpendLimit'}:raise ContractError('Не подтверждён недельный бюджет стратегии.')
+        weekly=highest['WeeklySpendLimit'];daily=before['DailyBudget'].get('Amount')
+        if type(weekly) is not int or weekly<=0 or type(daily) is not int or daily<=0:
+            raise ContractError('Не подтверждены положительные дневной и недельный бюджеты.')
+        amount=p['daily_budget_micros']
+        if amount>daily or amount*7>weekly:
+            raise ContractError('Поисковый профиль может только сохранять или снижать оба бюджета.')
+        new_strategy={'Search':{'BiddingStrategyType':'HIGHEST_POSITION','PlacementTypes':dict(SEARCH_PLACEMENTS),
+                               'HighestPosition':{'WeeklySpendLimit':amount*7}},
+                      'Network':{'BiddingStrategyType':'SERVING_OFF'}}
+        # Manual EPK has one weekly budget. Do not submit its legacy daily alias
+        # together with WeeklySpendLimit. Still require the exact derived daily
+        # value in the reread; unexpected provider normalization remains PARTIAL.
+        payload={'Id':object_id,'StartDate':p['start_date'],'EndDate':p['end_date'],
+                 'UnifiedCampaign':{'BiddingStrategy':new_strategy}}
+        expected=deepcopy(before)
+        expected.update(StartDate=p['start_date'],EndDate=p['end_date'],DailyBudget={'Amount':amount,'Mode':'STANDARD'})
+        expected['UnifiedCampaign']['BiddingStrategy']=deepcopy(new_strategy)
     elif action=='group.create':
         exact(p,{'campaign_id','name','region_ids','negative_keywords'})
         if not isinstance(p['region_ids'],list) or not p['region_ids'] or not set(p['region_ids'])<=set(grant['region_ids']):
@@ -185,10 +225,35 @@ def check_bid(value,grant):
 def validate_dates(start,end,grant):
     try:a,b=date.fromisoformat(start),date.fromisoformat(end)
     except (ValueError,TypeError):raise ContractError('Неверные даты кампании.') from None
-    limit=instant_date(grant['expires_at'])
-    # Direct EndDate stops at 00:00 Moscow. Avoid claiming project timezone changes it.
-    if not datetime.now(ZoneInfo('Europe/Moscow')).date()<=a<b<=limit:
+    if not datetime.now(ZoneInfo('Europe/Moscow')).date()<=a<=b:
         raise ContractError('Период кампании выходит за срок допуска или уже прошёл.')
+    if 'starts_at' in grant:
+        from .analytics import instant
+        if datetime.combine(a,datetime.min.time(),ZoneInfo('Europe/Moscow'))<instant(grant['starts_at']):
+            # Today's start is safe only after the active grant began; no backdated future launch.
+            if a!=datetime.now(ZoneInfo('Europe/Moscow')).date():
+                raise ContractError('Начало показов раньше допуска.')
+    validate_end_date(end,grant)
+
+
+def validate_end_date(end,grant):
+    from .analytics import instant
+    try:
+        last=date.fromisoformat(end)
+        stop=datetime.combine(last+timedelta(days=1),datetime.min.time(),ZoneInfo('Europe/Moscow'))
+    except (ValueError,TypeError,OverflowError):raise ContractError('Неверная дата остановки кампании.') from None
+    # EndDate includes the entire Moscow calendar day, i.e. stops at 24:00.
+    if last<datetime.now(ZoneInfo('Europe/Moscow')).date() or stop>instant(grant['expires_at']):
+        raise ContractError('Дата остановки кампании не соответствует допуску.')
+    return last
+
+
+def weekly_budget(campaign):
+    search=campaign.get('UnifiedCampaign',{}).get('BiddingStrategy',{}).get('Search',{})
+    weekly=search.get('HighestPosition',{}).get('WeeklySpendLimit')
+    if search.get('BiddingStrategyType')!='HIGHEST_POSITION' or type(weekly) is not int or weekly<=0:
+        raise ContractError('Не подтверждён недельный бюджет ручного поиска.')
+    return weekly
 
 
 def instant_date(value):

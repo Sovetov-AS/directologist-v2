@@ -8,7 +8,7 @@ from .analytics import instant
 from .contracts import ContractError, canonical, digest, identifier
 from .planning import integer
 
-OPERATIONS = {'campaign.create', 'campaign.pause', 'campaign.resume', 'campaign.budget', 'campaign.negatives',
+OPERATIONS = {'campaign.create', 'campaign.pause', 'campaign.resume', 'campaign.budget', 'campaign.negatives', 'campaign.search-profile',
               'group.create', 'group.negatives', 'ad.create', 'ad.update', 'ad.moderate', 'ad.pause', 'ad.resume',
               'keyword.create', 'keyword.update', 'keyword.autotarget', 'keyword.bid', 'keyword.pause', 'keyword.resume'}
 FIELDS = {'schema_version', 'project_id', 'context_hash', 'version', 'environment', 'client_login', 'currency',
@@ -16,11 +16,16 @@ FIELDS = {'schema_version', 'project_id', 'context_hash', 'version', 'environmen
           'region_ids', 'max_campaigns', 'max_operations_per_day', 'max_daily_budget_micros',
           'max_total_budget_micros', 'max_bid_micros', 'spend_buffer_micros', 'trust_mode',
           'accept_delayed_spend', 'approval_source'}
+OPTIONAL_FIELDS = {'budget_vat_basis_points'}
 
 
 def validate(context, value, *, active=True):
-    if not isinstance(value, dict) or set(value) != FIELDS or type(value.get('schema_version')) is not int or value.get('schema_version') != 2:
+    if not isinstance(value, dict) or not FIELDS<=set(value) or set(value)-FIELDS-OPTIONAL_FIELDS or type(value.get('schema_version')) is not int or value.get('schema_version') != 2:
         raise ContractError('Неподдерживаемый DirectGrant v2.')
+    if 'budget_vat_basis_points' in value:
+        tax=value['budget_vat_basis_points']
+        if type(tax) is not int or not 0<=tax<=10000:
+            raise ContractError('НДС бюджета должен быть целым числом базисных пунктов от 0 до 10000.')
     if value['project_id'] != context.project_id or value['context_hash'] != context.context_hash:
         raise ContractError('Допуск относится к другому проекту/подключению.')
     identifier(value['version'])

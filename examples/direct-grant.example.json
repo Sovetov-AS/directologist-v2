@@ -21,6 +21,7 @@
     "campaign.negatives",
     "campaign.pause",
     "campaign.resume",
+    "campaign.search-profile",
     "group.create",
     "group.negatives",
     "keyword.autotarget",

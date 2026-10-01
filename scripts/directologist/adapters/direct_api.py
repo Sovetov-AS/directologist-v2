@@ -29,11 +29,31 @@ FIELDS = {
 }
 
 
+# Diagnostics contain only fixed schema names, never provider text or values.
+DIAGNOSTIC_FIELDS = frozenset({'DailyBudget','WeeklySpendLimit','HighestPosition',
+    'StartDate','EndDate','BiddingStrategy','PlacementTypes','SearchResults',
+    'ProductGallery','DynamicPlaces','Maps','SearchOrganizationList','CounterIds',
+    'Settings','AttributionModel','CustomPeriodBudget','BudgetType'})
+
+
+def diagnostic_fields(*texts):
+    tokens=set()
+    for value in texts:
+        if isinstance(value,str) and len(value)<=8192:
+            tokens.update(re.findall(r'\b[A-Za-z][A-Za-z0-9_]*\b',value))
+    return tuple(sorted(tokens & DIAGNOSTIC_FIELDS))
+
+
 class DirectFailure(ContractError):
-    def __init__(self, outcome='UNKNOWN', code=None):
+    def __init__(self, outcome='UNKNOWN', code=None, retry_after=None, fields=()):
         self.outcome = outcome
         self.code = code if type(code) is int else None
-        super().__init__('Direct API: ' + outcome + (f' (code {self.code})' if self.code is not None else ''))
+        self.fields = tuple(sorted(set(fields) & DIAGNOSTIC_FIELDS))
+        self.diagnostic_suffix = ';fields=' + ','.join(self.fields) if self.fields else ''
+        self.retry_after = retry_after if type(retry_after) is int and retry_after > 0 else None
+        super().__init__('Direct API: ' + outcome + (f' (code {self.code})' if self.code is not None else '')
+                         + self.diagnostic_suffix
+                         + (f'; retry after {self.retry_after}s with identical parameters' if self.retry_after else ''))
 
 
 def positive_id(value):
@@ -58,15 +78,17 @@ class DirectAPI:
         headers = {'Authorization': 'Bearer ' + self.credential.value, 'Client-Login': self.client_login,
                    'Accept-Language': 'en', 'Content-Type': 'application/json; charset=utf-8'}
         if report:
-            headers.update({'processingMode': 'online', 'returnMoneyInMicros': 'true',
+            headers.update({'processingMode': 'auto', 'returnMoneyInMicros': 'true',
                             'skipReportHeader': 'true', 'skipColumnHeader': 'false', 'skipReportSummary': 'true'})
         req = urllib.request.Request(self.base + service, data=canonical(body).encode(), headers=headers, method='POST')
         try:
             with self.opener.open(req, timeout=30) as response:
                 status = response.status
                 raw = response.read(8 * 1024 * 1024 + 1)
+                retry_in = response.headers.get('retryIn')
             if status in {201, 202}:
-                raise DirectFailure('PENDING')
+                retry_after = int(retry_in) if isinstance(retry_in, str) and retry_in.isdigit() else 60
+                raise DirectFailure('PENDING', retry_after=max(1, retry_after))
             if status != 200 or len(raw) > 8 * 1024 * 1024 or self.credential.value.encode() in raw:
                 raise DirectFailure()
             if report and not raw.lstrip().startswith(b'{'):
@@ -75,8 +97,9 @@ class DirectAPI:
             if not isinstance(data, dict):
                 raise DirectFailure()
             if 'error' in data:
-                code = data['error'].get('error_code') if isinstance(data['error'], dict) else None
-                raise DirectFailure('REJECTED', code)
+                error = data['error'] if isinstance(data['error'], dict) else {}
+                raise DirectFailure('REJECTED', error.get('error_code'),
+                    fields=diagnostic_fields(error.get('error_string'),error.get('error_detail')))
             if report or not isinstance(data.get('result'), dict):
                 raise DirectFailure()
             return data['result']
@@ -150,8 +173,11 @@ class DirectAPI:
         row = rows[0]
         errors = row.get('Errors', [])
         if errors:
-            code = errors[0].get('Code') if isinstance(errors, list) and isinstance(errors[0], dict) else None
-            raise DirectFailure('REJECTED', code)
+            if not isinstance(errors,list) or not all(isinstance(e,dict) and type(e.get('Code')) is int for e in errors):
+                raise DirectFailure()
+            error=errors[0]
+            raise DirectFailure('REJECTED', error['Code'],
+                fields=diagnostic_fields(error.get('Message'),error.get('Details')))
         object_id = row.get('Id', row.get('KeywordId'))
         try: positive_id(object_id)
         except ContractError: raise DirectFailure() from None
@@ -208,7 +234,11 @@ class DirectAPI:
                 'report_type':spec['ReportType'],'query_coverage':'platform_report_only' if queries else None}
 
     def spend(self, campaign_ids, start, end):
-        if not campaign_ids: return 0
+        return sum(row['Cost'] for row in self.spend_rows(campaign_ids,start,end))
+
+    def spend_rows(self, campaign_ids, start, end):
+        """One gross campaign/day snapshot for consistent period/week accounting."""
+        if not campaign_ids: return []
         from ..analytics import period
         period(start, end)
         for value in campaign_ids: positive_id(value)
@@ -220,12 +250,15 @@ class DirectAPI:
         raw = self._request('reports', {'params': spec}, report=True)
         reader = csv.DictReader(io.StringIO(raw), delimiter='\t')
         if reader.fieldnames != ['Date', 'CampaignId', 'Cost']: raise DirectFailure()
-        total, seen = 0, set()
+        rows, seen = [], set()
         for row in reader:
             if set(row) != {'Date', 'CampaignId', 'Cost'} or None in row.values(): raise DirectFailure()
             key = (row['Date'], row['CampaignId'])
             if key in seen or row['CampaignId'] not in set(map(str, campaign_ids)) or not start <= row['Date'] <= end:
                 raise DirectFailure()
             if not re.fullmatch(r'[0-9]{1,20}', row['Cost']): raise DirectFailure()
-            seen.add(key);total += int(row['Cost'])
-        return total
+            from datetime import date
+            try:date.fromisoformat(row['Date'])
+            except ValueError:raise DirectFailure() from None
+            seen.add(key);rows.append({'Date':row['Date'],'CampaignId':int(row['CampaignId']),'Cost':int(row['Cost'])})
+        return rows

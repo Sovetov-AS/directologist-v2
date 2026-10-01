@@ -30,6 +30,35 @@ class DirectAPITests(unittest.TestCase):
         with self.assertRaises(DirectFailure) as e:self.api.mutate('campaigns','suspend',{'SelectionCriteria':{'Ids':[1]}})
         self.assertEqual(e.exception.outcome,'UNKNOWN');self.assertEqual(self.opener.open.call_count,1)
         self.assertNotIn('PRIVATE',str(e.exception))
+
+    def test_parameter_diagnostics_never_copy_provider_text_or_values(self):
+        error={'Code':4004,'Message':'PRIVATE_SENTINEL contact me@example.org',
+               'Details':'DailyBudget=123 conflicts with HighestPosition.WeeklySpendLimit=456'}
+        self.reply({'result':{'UpdateResults':[{'Errors':[error]}]}})
+        with self.assertRaises(DirectFailure) as caught:
+            self.api.mutate('campaigns','update',{'Campaigns':[{'Id':1}]})
+        self.assertEqual(caught.exception.fields,('DailyBudget','HighestPosition','WeeklySpendLimit'))
+        for secret in ('PRIVATE','example.org','123','456'):
+            self.assertNotIn(secret,str(caught.exception))
+        self.reply({'error':{'error_code':4004,'error_string':error['Message'],'error_detail':error['Details']}})
+        with self.assertRaises(DirectFailure) as caught:
+            self.api.call('campaigns','update',{'Campaigns':[{'Id':1}]})
+        self.assertEqual(caught.exception.fields,('DailyBudget','HighestPosition','WeeklySpendLimit'))
+        self.assertNotIn('PRIVATE',str(caught.exception))
+
+    def test_malformed_errors_are_unknown_not_safe_to_resend(self):
+        for errors in ({'Code':4004},['PRIVATE_SENTINEL'],[{'Message':'Private'}]):
+            self.reply({'result':{'UpdateResults':[{'Errors':errors}]}})
+            with self.assertRaises(DirectFailure) as caught:
+                self.api.mutate('campaigns','update',{'Campaigns':[{'Id':1}]})
+            self.assertEqual(caught.exception.outcome,'UNKNOWN')
+
+    def test_diagnostic_values_are_bounded_and_nonrecursive(self):
+        from directologist.adapters.direct_api import diagnostic_fields
+        self.assertEqual(diagnostic_fields({'DailyBudget':'PRIVATE'},['WeeklySpendLimit'],None,4004),())
+        self.assertEqual(diagnostic_fields('DailyBudget'+('x'*8192)),())
+        self.assertEqual(diagnostic_fields('prefixDailyBudgetSuffix WeeklySpendLimit_private'),())
+        self.assertEqual(diagnostic_fields('Bearer PRIVATE_SECRET email@example.org DailyBudget=123'),('DailyBudget',))
     def test_wrong_cardinality_or_foreign_read_rejected(self):
         self.reply({'result':{'AddResults':[{'Id':1},{'Id':2}]}})
         with self.assertRaises(DirectFailure):self.api.mutate('campaigns','add',{'Campaigns':[{}]})
@@ -39,6 +68,7 @@ class DirectAPITests(unittest.TestCase):
         self.reply('Date\tCampaignId\tCost\n2026-09-20\t1\t123000000\n')
         self.assertEqual(self.api.spend([1],'2026-09-20','2026-09-20'),123000000)
         request=self.opener.open.call_args.args[0]
+        self.assertEqual(request.get_header('Processingmode'),'auto')
         self.assertEqual(request.get_header('Returnmoneyinmicros'),'true')
         self.assertEqual(json.loads(request.data)['params']['IncludeVAT'],'YES')
         self.reply('Date\tCampaignId\tCost\n2026-09-20\t2\t123\n')
@@ -47,8 +77,32 @@ class DirectAPITests(unittest.TestCase):
         self.reply('',202)
         with self.assertRaises(DirectFailure) as e:self.api.spend([1],'2026-09-20','2026-09-20')
         self.assertEqual(e.exception.outcome,'PENDING')
+        self.assertEqual(e.exception.retry_after,60)
         self.reply({'result':{'Campaigns':[{'Id':1,'Name':'SYNTHETIC_TOKEN_VALUE'}]}})
         with self.assertRaises(DirectFailure):self.api.one('campaigns',1)
+
+    def test_spend_rows_are_one_validated_gross_snapshot(self):
+        header='Date\tCampaignId\tCost\n'
+        self.reply(header+'2026-09-20\t1\t123\n2026-09-21\t1\t456\n')
+        self.assertEqual(self.api.spend_rows([1],'2026-09-20','2026-09-21'),[
+            {'Date':'2026-09-20','CampaignId':1,'Cost':123},{'Date':'2026-09-21','CampaignId':1,'Cost':456}])
+        for invalid in ('2026-09-20\t1\t-1\n','2026-09-20\t1\t123\n2026-09-20\t1\t123\n',
+                        '2026-09-20\t1\t--\n','2026-09-20\t2\t123\n'):
+            self.reply(header+invalid)
+            with self.assertRaises(DirectFailure):self.api.spend_rows([1],'2026-09-20','2026-09-21')
+        self.reply(header+'2026-02-30\t1\t123\n')
+        with self.assertRaises(DirectFailure):self.api.spend_rows([1],'2026-02-01','2026-03-01')
+
+    def test_offline_report_retry_is_explicit_and_keeps_specification(self):
+        self.reply('',201)
+        self.opener.open.return_value.__enter__.return_value.headers={'retryIn':'7'}
+        with self.assertRaises(DirectFailure) as error:self.api.performance([1],'2026-09-20','2026-09-20',queries=True)
+        self.assertEqual(error.exception.retry_after,7)
+        self.assertEqual(self.opener.open.call_count,1)
+        first=self.opener.open.call_args.args[0].data
+        self.reply('Date\tCampaignId\tAdGroupId\tCriterionId\tCriterion\tQuery\tImpressions\tClicks\tCost\n')
+        self.api.performance([1],'2026-09-20','2026-09-20',queries=True)
+        self.assertEqual(self.opener.open.call_args.args[0].data,first)
 
     def test_detail_reports_preserve_scope_and_exact_cost(self):
         header='Date\tCampaignId\tAdGroupId\tCriterionId\tCriterion\tQuery\tImpressions\tClicks\tCost\n'
@@ -88,6 +142,9 @@ class DirectCompilerTests(unittest.TestCase):
         settings=p['params']['Campaigns'][0]['UnifiedCampaign']
         self.assertEqual(settings['BiddingStrategy']['Network']['BiddingStrategyType'],'SERVING_OFF')
         self.assertNotIn('TextCampaign',p['params']['Campaigns'][0])
+        self.assertNotIn('DailyBudget',p['params']['Campaigns'][0])
+        self.assertEqual(settings['BiddingStrategy']['Search']['HighestPosition']['WeeklySpendLimit'],700000000)
+        self.assertEqual(p['expected']['DailyBudget'],{'Amount':100000000,'Mode':'STANDARD'})
     def test_new_ad_uses_responsive_schema(self):
         p=self.compile('ad.create',{'group_id':2,'titles':['Synthetic title'],'texts':['Synthetic text'],'href':'https://example.org/'})
         self.assertEqual(p['params']['Ads'][0]['ResponsiveAd']['Titles'],['Synthetic title'])
