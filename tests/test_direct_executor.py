@@ -8,12 +8,14 @@ from analysis_fixtures import setup
 from directologist.contracts import ContractError,digest
 from directologist.direct_policy import OPERATIONS,register,revoke
 from directologist.direct_executor import DirectExecutor
+from directologist.direct_operations import subset
 from directologist.adapters.direct_api import DirectFailure
 
 class FakeDirect:
     environment='sandbox';client_login='fixture'
     def __init__(self):
         self.calls=[];self.cost=0;self.objects={'campaigns':{},'adgroups':{},'ads':{},'keywords':{}};self.next_id=10
+        self.sort_negative_keywords=False
     def currency(self):return 'RUB'
     def spend(self,*args):return self.cost
     def one(self,service,oid):
@@ -30,6 +32,8 @@ class FakeDirect:
             return oid
         key={'campaigns':'Campaigns','adgroups':'AdGroups','ads':'Ads','keywords':'Keywords','keywordbids':'KeywordBids'}[service]
         value=copy.deepcopy(params[key][0]);oid=value.get('Id',value.get('KeywordId'))
+        if self.sort_negative_keywords and 'NegativeKeywords' in value:
+            value['NegativeKeywords']['Items'].sort()
         if service=='campaigns':
             weekly=value.get('UnifiedCampaign',{}).get('BiddingStrategy',{}).get('Search',{}).get('HighestPosition',{}).get('WeeklySpendLimit')
             if weekly is not None:
@@ -191,3 +195,67 @@ class DirectExecutorTests(unittest.TestCase):
         self.api.objects['keywords'][4]={'Id':4,'AdGroupId':2,'Keyword':'synthetic','Bid':1000000,'State':'ON'}
         with self.assertRaises(ContractError):self.exe.prepare(self.request('keyword.bid',{'bid_micros':2000000},4))
         self.assertFalse(self.api.calls)
+
+    def test_negative_postcondition_accepts_provider_reorder_for_campaign_and_group(self):
+        self.api.sort_negative_keywords=True
+        self.api.objects['adgroups'][2]={'Id':2,'CampaignId':1,'Name':'Group','RegionIds':[225]}
+        requests=[
+            self.request('campaign.negatives',{'negative_keywords':['second','first']},1,'campaign-negatives'),
+            self.request('group.negatives',{'negative_keywords':['zulu','alpha']},2,'group-negatives'),
+        ]
+        for writes,request in enumerate(requests,1):
+            with self.subTest(action=request['action']):
+                self.assertEqual(self.exe.perform(request)['status'],'VERIFIED')
+                self.assertEqual(len(self.api.calls),writes)
+
+    def test_historical_partial_negative_reconciles_read_only_without_journal_rewrite(self):
+        self.api.sort_negative_keywords=True
+        request=self.request('campaign.negatives',{'negative_keywords':['second','first']},1,'historical-negatives')
+        plan=self.exe.prepare(request);original_matches=self.exe._matches
+        try:
+            self.exe._matches=lambda old_plan,old_after:subset(old_plan['expected'],old_after)
+            self.assertEqual(self.exe.apply(plan)['status'],'PARTIAL')
+        finally:self.exe._matches=original_matches
+        before=dict(self.exe.store.connection.execute(
+            'SELECT intent,plan FROM direct_steps WHERE request_id=?',(request['request_id'],)).fetchone())
+        self.assertEqual(self.exe.reconcile(request['request_id'],1)['status'],'VERIFIED')
+        after=dict(self.exe.store.connection.execute(
+            'SELECT intent,plan FROM direct_steps WHERE request_id=?',(request['request_id'],)).fetchone())
+        self.assertEqual(before,after);self.assertEqual(len(self.api.calls),1)
+        stored_plan=json.loads(after['plan'])
+        self.assertEqual(stored_plan['sha256'],plan['sha256'])
+        self.assertEqual(after['intent'],digest(stored_plan['request']))
+
+    def test_negative_postcondition_rejects_content_identity_and_shape_mismatches(self):
+        plan={'request':{'action':'campaign.negatives'},
+              'expected':{'Id':1,'NegativeKeywords':{'Items':['first','second']}}}
+        mismatches=[
+            ('missing',{'Id':1}),
+            ('additional',{'Id':1,'NegativeKeywords':{'Items':['first','second','third']}}),
+            ('replaced',{'Id':1,'NegativeKeywords':{'Items':['first','third']}}),
+            ('duplicate',{'Id':1,'NegativeKeywords':{'Items':['first','second','second']}}),
+            ('wrong-id',{'Id':2,'NegativeKeywords':{'Items':['second','first']}}),
+            ('malformed-negative',{'Id':1,'NegativeKeywords':['first','second']}),
+            ('missing-items',{'Id':1,'NegativeKeywords':{}}),
+            ('string-items',{'Id':1,'NegativeKeywords':{'Items':'first'}}),
+            ('non-string-item',{'Id':1,'NegativeKeywords':{'Items':['first',2]}}),
+        ]
+        for case,actual in mismatches:
+            with self.subTest(case=case):self.assertFalse(self.exe._matches(plan,actual))
+
+    def test_empty_negative_clear_accepts_provider_none_normalization(self):
+        original=self.api.mutate
+        def clear_as_none(*args):
+            oid=original(*args);self.api.objects['campaigns'][oid]['NegativeKeywords']=None;return oid
+        self.api.mutate=clear_as_none
+        result=self.exe.perform(self.request('campaign.negatives',{'negative_keywords':[]},1,'clear-negatives'))
+        self.assertEqual(result['status'],'VERIFIED');self.assertEqual(len(self.api.calls),1)
+
+    def test_negative_order_exception_does_not_relax_other_arrays_or_actions(self):
+        negative_plan={'request':{'action':'group.negatives'},
+                       'expected':{'Id':2,'RegionIds':[225,213],'NegativeKeywords':{'Items':['first','second']}}}
+        actual={'Id':2,'RegionIds':[213,225],'NegativeKeywords':{'Items':['second','first']}}
+        self.assertFalse(self.exe._matches(negative_plan,actual))
+        create_plan={'request':{'action':'campaign.create'},
+                     'expected':{'NegativeKeywords':{'Items':['first','second']}}}
+        self.assertFalse(self.exe._matches(create_plan,{'NegativeKeywords':{'Items':['second','first']}}))

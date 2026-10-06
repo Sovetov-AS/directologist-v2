@@ -174,9 +174,21 @@ class DirectExecutor:
         if existing:return existing
         return self.apply(self.prepare(request))
     def _matches(self,plan,after):
-        if plan['request']['action']=='campaign.search-profile':return plan['expected']==after
-        if plan['request']['action']=='ad.moderate':return after.get('Status') in plan['expected']['Status']
-        if plan['request']['action']=='ad.resume':return after.get('State') in {'ON','OFF'} and after.get('Status')=='ACCEPTED'
+        action=plan['request']['action']
+        if action=='campaign.search-profile':return plan['expected']==after
+        if action=='ad.moderate':return after.get('Status') in plan['expected']['Status']
+        if action=='ad.resume':return after.get('State') in {'ON','OFF'} and after.get('Status')=='ACCEPTED'
+        if action in {'campaign.negatives','group.negatives'}:
+            expected=plan.get('expected')
+            if not isinstance(expected,dict) or not isinstance(after,dict):return False
+            expected_negative=expected.get('NegativeKeywords');actual_negative=after.get('NegativeKeywords')
+            if not isinstance(expected_negative,dict) or not isinstance(actual_negative,dict):return False
+            expected_items=expected_negative.get('Items');actual_items=actual_negative.get('Items')
+            if (not isinstance(expected_items,list) or not isinstance(actual_items,list)
+                    or any(not isinstance(item,str) for item in expected_items+actual_items)):
+                return False
+            if sorted(expected_items)!=sorted(actual_items):return False
+            return subset({key:value for key,value in expected.items() if key!='NegativeKeywords'},after)
         return subset(plan['expected'],after)
     def reconcile(self,request_id,object_id=None):
         with setup_lock(self.context):
