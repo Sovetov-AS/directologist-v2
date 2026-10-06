@@ -8,7 +8,7 @@ from .analytics import instant
 from .contracts import ContractError, canonical, digest, identifier
 from .planning import integer
 
-OPERATIONS = {'campaign.create', 'campaign.pause', 'campaign.resume', 'campaign.budget', 'campaign.negatives', 'campaign.search-profile',
+OPERATIONS = {'campaign.create', 'campaign.pause', 'campaign.resume', 'campaign.budget', 'campaign.negatives', 'campaign.search-profile', 'campaign.weekly-budget',
               'group.create', 'group.negatives', 'ad.create', 'ad.update', 'ad.moderate', 'ad.pause', 'ad.resume',
               'keyword.create', 'keyword.update', 'keyword.autotarget', 'keyword.bid', 'keyword.pause', 'keyword.resume'}
 FIELDS = {'schema_version', 'project_id', 'context_hash', 'version', 'environment', 'client_login', 'currency',
@@ -16,7 +16,7 @@ FIELDS = {'schema_version', 'project_id', 'context_hash', 'version', 'environmen
           'region_ids', 'max_campaigns', 'max_operations_per_day', 'max_daily_budget_micros',
           'max_total_budget_micros', 'max_bid_micros', 'spend_buffer_micros', 'trust_mode',
           'accept_delayed_spend', 'approval_source'}
-OPTIONAL_FIELDS = {'budget_vat_basis_points'}
+OPTIONAL_FIELDS = {'budget_vat_basis_points', 'max_weekly_budget_micros'}
 
 
 def validate(context, value, *, active=True):
@@ -56,6 +56,16 @@ def validate(context, value, *, active=True):
         raise ContractError('Не выбраны кампании или создание новых.')
     if not value['allowed_operations'] or set(value['allowed_operations']) - OPERATIONS:
         raise ContractError('Неизвестные разрешённые операции.')
+    if 'campaign.weekly-budget' in value['allowed_operations'] and 'max_weekly_budget_micros' not in value:
+        raise ContractError('Недельная операция требует явно согласованного недельного предела.')
+    if 'max_weekly_budget_micros' in value:
+        integer(value['max_weekly_budget_micros'])
+        if value['max_weekly_budget_micros']<=0 or 'budget_vat_basis_points' not in value:
+            raise ContractError('Недельный режим требует положительного предела и явного НДС.')
+        if value['allow_create'] or set(value['allowed_operations']) & {'campaign.create','campaign.budget','campaign.search-profile'}:
+            raise ContractError('В недельном режиме бюджет меняется только через campaign.weekly-budget; создание не поддержано.')
+        if value['max_campaigns']!=1 or len(value['campaign_ids'])!=1:
+            raise ContractError('Недельный пилот поддерживает ровно одну существующую кампанию.')
     if not value['allowed_domains'] or not value['region_ids']:
         raise ContractError('Нужны разрешённые домены и регионы.')
     for domain in value['allowed_domains']:

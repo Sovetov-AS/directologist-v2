@@ -139,6 +139,39 @@ def compile_request(context, grant, request, api, managed):
         expected=deepcopy(before)
         expected.update(StartDate=p['start_date'],EndDate=p['end_date'],DailyBudget={'Amount':amount,'Mode':'STANDARD'})
         expected['UnifiedCampaign']['BiddingStrategy']=deepcopy(new_strategy)
+    elif action=='campaign.weekly-budget':
+        exact(p,{'weekly_budget_micros'})
+        integer(p['weekly_budget_micros'])
+        cap=grant.get('max_weekly_budget_micros')
+        if type(cap) is not int or not 0<p['weekly_budget_micros']<=cap:
+            raise ContractError('OWNER_REQUIRED: недельный бюджет вне явно согласованного допуска.')
+        if grant['currency']=='RUB' and p['weekly_budget_micros']<300000000:
+            raise ContractError('Минимальный недельный бюджет RUB — 300 рублей.')
+        required={'Id','Name','Type','State','Status','StartDate','EndDate','DailyBudget','NegativeKeywords','UnifiedCampaign'}
+        if not required<=set(before):raise ContractError('Неполный снимок для сохранения настроек бюджета.')
+        validate_weekly_window(before)
+        validate_end_date(before['EndDate'],grant)
+        unified=before['UnifiedCampaign']
+        if not isinstance(unified,dict) or not {'BiddingStrategy','Settings','CounterIds','AttributionModel'}<=set(unified):
+            raise ContractError('Неполные параметры ЕПК для сохранения настроек.')
+        strategy=unified['BiddingStrategy'];search=strategy.get('Search',{});daily=before['DailyBudget']
+        if (set(strategy)!={'Search','Network'} or strategy['Network']!={'BiddingStrategyType':'SERVING_OFF'}
+                or set(search)!={'BiddingStrategyType','PlacementTypes','HighestPosition'}
+                or search.get('BiddingStrategyType')!='HIGHEST_POSITION'
+                or search.get('PlacementTypes')!=SEARCH_PLACEMENTS
+                or set(search['HighestPosition'])!={'WeeklySpendLimit'}):
+            raise ContractError('Поддержан только проверенный ручной поиск с выключенной РСЯ.')
+        weekly_budget(before)
+        if not isinstance(daily,dict) or set(daily)!={'Amount','Mode'} or daily['Mode']!='STANDARD':
+            raise ContractError('Не подтверждено дневное представление бюджета.')
+        validate_budget(daily['Amount'],grant)
+        new_strategy=deepcopy(strategy)
+        new_strategy['Search']['HighestPosition']['WeeklySpendLimit']=p['weekly_budget_micros']
+        payload={'Id':object_id,'UnifiedCampaign':{'BiddingStrategy':new_strategy}}
+        expected=deepcopy(before)
+        expected['UnifiedCampaign']['BiddingStrategy']=deepcopy(new_strategy)
+        # The provider derives DailyBudget; its undocumented rounding is not
+        # guessed here. The separate postcondition checks the approved bound.
     elif action=='group.create':
         exact(p,{'campaign_id','name','region_ids','negative_keywords'})
         if not isinstance(p['region_ids'],list) or not p['region_ids'] or not set(p['region_ids'])<=set(grant['region_ids']):
@@ -254,6 +287,17 @@ def weekly_budget(campaign):
     if search.get('BiddingStrategyType')!='HIGHEST_POSITION' or type(weekly) is not int or weekly<=0:
         raise ContractError('Не подтверждён недельный бюджет ручного поиска.')
     return weekly
+
+
+def validate_weekly_window(campaign):
+    # Carry-over is not exposed by this adapter. Limit explicit weekly mode to
+    # a campaign wholly within the current calendar week, with no prior week.
+    today=datetime.now(ZoneInfo('Europe/Moscow')).date()
+    monday=today-timedelta(days=today.weekday())
+    try:start=date.fromisoformat(campaign['StartDate']);end=date.fromisoformat(campaign['EndDate'])
+    except (KeyError,TypeError,ValueError):raise ContractError('Не подтверждены даты недельного пилота.') from None
+    if not monday<=start<=end<=monday+timedelta(days=6):
+        raise ContractError('Недельный режим поддерживает только текущую календарную неделю без переноса остатков.')
 
 
 def instant_date(value):

@@ -1,5 +1,6 @@
 """Journaled real Direct operations under an explicit trusted-local project grant."""
 import json
+from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -7,7 +8,7 @@ from . import direct_policy as policy
 from .adapters.direct_api import DirectAPI, DirectFailure, positive_id
 from .analytics import instant
 from .contracts import ContractError, canonical, digest
-from .direct_operations import SERVICE, SEARCH_PLACEMENTS, compile_request, normalize, subset, check_bid, instant_date, validate_end_date, weekly_budget
+from .direct_operations import SERVICE, SEARCH_PLACEMENTS, compile_request, normalize, subset, check_bid, instant_date, validate_end_date, weekly_budget, validate_weekly_window
 from .secrets import SecretStore
 from .setup import setup_lock
 from .storage import Store, now
@@ -78,22 +79,33 @@ class DirectExecutor:
             if spent+grant['spend_buffer_micros']>=grant['max_total_budget_micros']:
                 raise ContractError('BUDGET_STOP: выполнить direct guard; лимит с резервом исчерпан.')
             if ids or request['action']=='campaign.create':
-                amounts=[];allocation=0
+                amounts=[];allocation=0;weeklies=[]
                 today=datetime.now(ZoneInfo("Europe/Moscow")).date()
                 for cid in ids:
                     campaign=normalize(api.one('campaigns',cid))
-                    if request['action']=='campaign.search-profile' and cid==request['object_id']:
+                    if request['action'] in {'campaign.search-profile','campaign.weekly-budget'} and cid==request['object_id']:
                         campaign=plan['expected']
                     amount=campaign.get('DailyBudget',{}).get('Amount')
                     if type(amount) is not int or amount<=0:raise ContractError('Нужна проверенная ручная стратегия и дневной бюджет каждой кампании.')
                     if request['action']=='campaign.budget' and cid==request['object_id']:amount=request['params']['daily_budget_micros']
                     # Do not let a lower legacy DailyBudget hide a larger EPK weekly limit.
-                    amount=max(amount,(weekly_budget(campaign)+6)//7)
+                    weekly=weekly_budget(campaign);weeklies.append(weekly)
+                    if 'max_weekly_budget_micros' in grant:validate_weekly_window(campaign)
+                    if 'max_weekly_budget_micros' not in grant:amount=max(amount,(weekly+6)//7)
                     end=campaign.get("EndDate")
                     if not end:raise ContractError("Не задана дата остановки кампании.")
                     first=max(today,date.fromisoformat(campaign.get('StartDate',today.isoformat())))
                     if 'budget_vat_basis_points' in grant:
-                        allocation+=self._remaining_weekly(cost_rows,cid,amount*7,first,date.fromisoformat(end),today,grant)
+                        if 'max_weekly_budget_micros' in grant:
+                            monday=today-timedelta(days=today.weekday())
+                            baseline=self._weekly_restart_baseline(cid,monday.isoformat(),grant)
+                            if request['action']=='campaign.weekly-budget' and cid==request['object_id']:
+                                # A budget edit can restart weekly accounting. Do
+                                # not credit pre-edit spending against the new cap.
+                                baseline=sum(row['Cost'] for row in cost_rows if row['CampaignId']==cid and monday.isoformat()<=row['Date']<=today.isoformat())
+                                plan['budget_restart']={'week_start':monday.isoformat(),'spent_before_micros':baseline}
+                            allocation+=self._remaining_weekly(cost_rows,cid,weekly,first,date.fromisoformat(end),today,grant,baseline)
+                        else:allocation+=self._remaining_weekly(cost_rows,cid,amount*7,first,date.fromisoformat(end),today,grant)
                     else:allocation+=amount*max(7,(date.fromisoformat(end)-first).days+1)
                     amounts.append(amount)
                 if request['action']=='campaign.create':
@@ -106,11 +118,27 @@ class DirectExecutor:
                 if allocation+spent+grant['spend_buffer_micros']>grant['max_total_budget_micros']:
                     raise ContractError('OWNER_REQUIRED: резерв бюджетов на оставшийся период превышает общий предел.')
                 if sum(amounts)>grant['max_daily_budget_micros']:raise ContractError('OWNER_REQUIRED: суммарные дневные бюджеты превышены.')
+                if 'max_weekly_budget_micros' in grant and sum(weeklies)>grant['max_weekly_budget_micros']:
+                    raise ContractError('OWNER_REQUIRED: суммарные недельные бюджеты превышены.')
             cid=plan['campaign_id']
             if request['action']=='campaign.resume' or (cid and api.one('campaigns',cid).get('State')=='ON'):
                 self.audit_launch(api,cid,grant)
+    def _weekly_restart_baseline(self,cid,week_start,grant):
+        # Persisted plans survive grant rotation and read-only reconciliation.
+        rows=self.store.connection.execute("SELECT plan FROM direct_steps WHERE status='VERIFIED' ORDER BY rowid DESC").fetchall()
+        for row in rows:
+            plan=json.loads(row['plan'])
+            if plan['request']['action']=='campaign.weekly-budget' and plan['campaign_id']==cid:
+                historical=self.store.connection.execute('SELECT data FROM direct_grants WHERE hash=?',(plan['grant_hash'],)).fetchone()
+                if historical is None:raise ContractError('Исходный допуск рестарта отсутствует.')
+                previous=json.loads(historical['data'])
+                if any(previous.get(key)!=grant.get(key) for key in ('project_id','context_hash','environment','client_login','currency')):
+                    continue
+                restart=plan.get('budget_restart',{})
+                if restart.get('week_start')==week_start:return restart['spent_before_micros']
+        return 0
     @staticmethod
-    def _remaining_weekly(cost_rows,cid,weekly,first,end,today,grant):
+    def _remaining_weekly(cost_rows,cid,weekly,first,end,today,grant,baseline=0):
         """Reserve remaining platform calendar weeks in the grant's gross currency.
 
         Only an explicitly approved VAT rate enables this mode. Reports are gross;
@@ -125,12 +153,14 @@ class DirectExecutor:
         consumed=0
         if cid is not None and first<=today:
             consumed=sum(row['Cost'] for row in cost_rows if row['CampaignId']==cid and monday.isoformat()<=row['Date']<=today.isoformat())
+        consumed=max(0,consumed-baseline)
         return gross*(weeks-1)+max(0,gross-consumed)
     def prepare(self,request):
         pause=request.get('action')=='campaign.pause'
         grant=policy.current(self.store,active=not pause,protective=pause);api=self.api(grant)
         plan=compile_request(self.context,grant,request,api,policy.campaigns(self.store,grant))
         self._check(grant,request,api,plan)
+        plan['sha256']=digest({k:v for k,v in plan.items() if k!='sha256'})
         return plan
     def apply(self,plan):
         with setup_lock(self.context):
@@ -176,6 +206,14 @@ class DirectExecutor:
     def _matches(self,plan,after):
         action=plan['request']['action']
         if action=='campaign.search-profile':return plan['expected']==after
+        if action=='campaign.weekly-budget':
+            daily=after.get('DailyBudget') if isinstance(after,dict) else None
+            grant=policy.historical(self.store,plan['grant_hash'])
+            if (not isinstance(daily,dict) or set(daily)!={'Amount','Mode'}
+                    or type(daily['Amount']) is not int or not 0<daily['Amount']<=grant['max_daily_budget_micros']
+                    or daily['Mode']!=plan['before']['DailyBudget']['Mode']):return False
+            expected=deepcopy(plan['expected']);expected['DailyBudget']=daily
+            return expected==after
         if action=='ad.moderate':return after.get('Status') in plan['expected']['Status']
         if action=='ad.resume':return after.get('State') in {'ON','OFF'} and after.get('Status')=='ACCEPTED'
         if action in {'campaign.negatives','group.negatives'}:
@@ -216,7 +254,8 @@ class DirectExecutor:
             raise ContractError('Не подтверждены площадки поиска.')
         end=campaign.get('EndDate')
         validate_end_date(end,grant)
-        if weekly_budget(campaign)>grant['max_daily_budget_micros']*7:
+        if 'max_weekly_budget_micros' in grant:validate_weekly_window(campaign)
+        if weekly_budget(campaign)>grant.get('max_weekly_budget_micros',grant['max_daily_budget_micros']*7):
             raise ContractError('Недельный бюджет поиска превышает допуск.')
         groups=api.get('adgroups',campaign_ids=[campaign_id]);ads=api.get('ads',campaign_ids=[campaign_id]);keywords=api.get('keywords',campaign_ids=[campaign_id])
         if not groups or not ads or not keywords:raise ContractError('Кампания ещё не собрана.')
@@ -248,14 +287,16 @@ class DirectExecutor:
             except (DirectFailure,ContractError):reason='SPEND_UNAVAILABLE'
         if not reason:
             try:
-                budgets=0
+                budgets=0;weeklies=0
                 for cid in ids:
                     campaign=api.one('campaigns',cid)
                     amount=(campaign.get('DailyBudget') or {}).get('Amount')
                     if type(amount) is not int or amount<=0:raise ContractError('Бюджет не подтверждён.')
                     budgets+=amount
+                    if 'max_weekly_budget_micros' in grant:weeklies+=weekly_budget(campaign)
                     if campaign.get('State')=='ON':self.audit_launch(api,cid,grant)
                 if budgets>grant['max_daily_budget_micros']:raise ContractError('Бюджеты вне допуска.')
+                if 'max_weekly_budget_micros' in grant and weeklies>grant['max_weekly_budget_micros']:raise ContractError('Недельные бюджеты вне допуска.')
             except (DirectFailure,ContractError):reason='POLICY_DRIFT'
         results=[]
         if reason:

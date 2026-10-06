@@ -59,7 +59,7 @@ def grant(ctx):
     clock=datetime.now(timezone.utc)
     return dict(schema_version=2,project_id=ctx.project_id,context_hash=ctx.context_hash,version='test-v1',environment='sandbox',
         client_login='fixture',currency='RUB',starts_at=(clock-timedelta(minutes=1)).isoformat(),expires_at=(clock+timedelta(days=10)).isoformat(),
-        campaign_ids=[1],allow_create=True,allowed_operations=sorted(OPERATIONS),allowed_domains=['example.org'],region_ids=[225],
+        campaign_ids=[1],allow_create=True,allowed_operations=sorted(OPERATIONS-{'campaign.weekly-budget'}),allowed_domains=['example.org'],region_ids=[225],
         max_campaigns=10,max_operations_per_day=100,max_daily_budget_micros=1000000000,max_total_budget_micros=10000000000,
         max_bid_micros=100000000,spend_buffer_micros=100000000,trust_mode='trusted-local',accept_delayed_spend=True,approval_source='SYNTHETIC TEST ONLY')
 
