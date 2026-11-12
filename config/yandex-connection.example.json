@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "direct": {
+    "environment": "production",
+    "client_login": "YOUR_DIRECT_LOGIN",
+    "writes_enabled": false,
+    "credential": {
+      "backend": "macos-keychain",
+      "service": "directologist4/yandex",
+      "account": "YOUR_KEYCHAIN_ACCOUNT"
+    }
+  },
+  "note": "Public template. Configure your own Keychain references. Writes disabled. Validate portal-specific payment rules before use.",
+  "metrika": {
+    "writes_enabled": false,
+    "credential": {
+      "backend": "macos-keychain",
+      "service": "directologist4/yandex",
+      "account": "YOUR_KEYCHAIN_ACCOUNT"
+    }
+  },
+  "wordstat": {
+    "writes_enabled": false,
+    "credential": {
+      "backend": "macos-keychain",
+      "service": "directologist4/yandex",
+      "account": "YOUR_KEYCHAIN_ACCOUNT"
+    },
+    "auth_scheme": "Api-Key"
+  }
+}

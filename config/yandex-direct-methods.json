@@ -1,0 +1,1361 @@
+{
+  "schema_version": 1,
+  "catalog_checked_date": "2026-11-12",
+  "default_version": "v501",
+  "effect_semantics": {
+    "read": "Не меняет рекламные/пользовательские объекты; включает вычисление результата и временное формирование отчёта. Может расходовать API-баллы.",
+    "write": "Создаёт, изменяет, удаляет объекты, управляет показами/ставками/модерацией или доступом участников.",
+    "unknown": "Не включать неизвестный метод в read автоматически; каталог не создаёт разрешения на выполнение."
+  },
+  "coverage": {
+    "scope": "Текущее русское оглавление публичного справочника API 5 + раздел устаревших методов + Reports; не API 4/Live 4, не весь UI.",
+    "active_services": 24,
+    "active_methods": 87,
+    "read_methods": 27,
+    "write_methods": 60,
+    "deprecated_entries": 4,
+    "reports_separate": true,
+    "official_toc_source": "https://yandex.ru/dev/direct/doc/ru/adextensions/adextensions",
+    "public_wsdl_versions_checked": [
+      "v5",
+      "v501"
+    ],
+    "method_calls_executed": false,
+    "schema_field_equivalence_verified": false,
+    "active_rpc_services": 23,
+    "virtual_report_operations": 1,
+    "counts_note": "active_methods/read_methods/write_methods считают только 87 реальных RPC-методов; services содержит также Reports и его виртуальный CLI get."
+  },
+  "transport": {
+    "http_method": "POST",
+    "encoding": "UTF-8",
+    "request_envelope": [
+      "method",
+      "params"
+    ],
+    "headers_source": "https://yandex.ru/dev/direct/doc/ru/concepts/headers",
+    "json_source": "https://yandex.ru/dev/direct/doc/ru/concepts/json",
+    "request_headers": [
+      "Authorization",
+      "Client-Login",
+      "Accept-Language",
+      "Use-Operator-Units",
+      "Accept-Encoding",
+      "Content-Type"
+    ],
+    "response_headers": [
+      "RequestId",
+      "Units",
+      "Units-Used-Login"
+    ],
+    "note": "Права, доступность типов/полей и бизнес-ограничения проверяет провайдер; HTTP 200 не означает отсутствие API/пообъектных ошибок."
+  },
+  "provider_limits": {
+    "source": "https://yandex.ru/dev/direct/doc/ru/concepts/units",
+    "max_concurrent_requests_per_advertiser": 5,
+    "units_limit": "individual_sliding_24_hour_window",
+    "object_limit_sources": [
+      "https://yandex.ru/dev/direct/doc/ru/clients/get",
+      "https://yandex.ru/dev/direct/doc/ru/agencyclients/get",
+      "https://yandex.ru/dev/direct/doc/ru/dictionaries/get"
+    ],
+    "batch_limit_policy": "Лимиты зависят от метода; выбранные проверенные примеры находятся у методов, это не исчерпывающая схема ограничений."
+  },
+  "services": {
+    "AdExtensions": {
+      "path": "adextensions",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/adextensions/adextensions",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/adextensions",
+        "v501": "https://api.direct.yandex.com/json/v501/adextensions"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/adextensions?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/adextensions?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/adextensions/add",
+          "batch_limit": {
+            "max_items": 1000,
+            "source": "https://yandex.ru/dev/direct/doc/ru/adextensions/add",
+            "note": "Лимит одного вызова, не лимит всей задачи. Остальные ограничения и состояние объектов — в документации метода."
+          }
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/adextensions/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/adextensions/get"
+        }
+      }
+    },
+    "AdGroups": {
+      "path": "adgroups",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/adgroups/adgroups",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/adgroups",
+        "v501": "https://api.direct.yandex.com/json/v501/adgroups"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/adgroups?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/adgroups?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/adgroups/add",
+          "batch_limit": {
+            "max_items": 1000,
+            "source": "https://yandex.ru/dev/direct/doc/ru/adgroups/add",
+            "note": "Лимит одного вызова, не лимит всей задачи. Остальные ограничения и состояние объектов — в документации метода."
+          }
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/adgroups/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/adgroups/get"
+        },
+        "update": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/adgroups/update",
+          "batch_limit": {
+            "max_items": 1000,
+            "source": "https://yandex.ru/dev/direct/doc/ru/adgroups/update",
+            "note": "Лимит одного вызова, не лимит всей задачи. Остальные ограничения и состояние объектов — в документации метода."
+          }
+        }
+      },
+      "version_note": "Для единой перфоманс-группы документация add/get/update явно требует v501. Наличие метода в WSDL v5 не означает поддержку всех типов/полей."
+    },
+    "AdImages": {
+      "path": "adimages",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/adimages/adimages",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/adimages",
+        "v501": "https://api.direct.yandex.com/json/v501/adimages"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/adimages?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/adimages?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/adimages/add",
+          "batch_limit": {
+            "max_items": 100,
+            "source": "https://yandex.ru/dev/direct/doc/ru/adimages/add",
+            "note": "Лимит одного вызова, не лимит всей задачи. Остальные ограничения и состояние объектов — в документации метода.",
+            "recommended_items": 3
+          }
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/adimages/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/adimages/get"
+        }
+      }
+    },
+    "Ads": {
+      "path": "ads",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/ads/ads",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/ads",
+        "v501": "https://api.direct.yandex.com/json/v501/ads"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/ads?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/ads?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/ads/add",
+          "batch_limit": {
+            "max_items": 1000,
+            "source": "https://yandex.ru/dev/direct/doc/ru/ads/add",
+            "note": "Лимит одного вызова, не лимит всей задачи. Остальные ограничения и состояние объектов — в документации метода."
+          }
+        },
+        "archive": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/ads/archive"
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/ads/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/ads/get"
+        },
+        "moderate": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/ads/moderate"
+        },
+        "resume": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/ads/resume"
+        },
+        "suspend": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/ads/suspend"
+        },
+        "unarchive": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/ads/unarchive"
+        },
+        "update": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/ads/update"
+        }
+      },
+      "version_note": "Для товарных объявлений документация add/get/update указывает v501. Наличие метода в WSDL v5 не означает поддержку всех типов/полей."
+    },
+    "AdVideos": {
+      "path": "advideos",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/advideos/advideos",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/advideos",
+        "v501": "https://api.direct.yandex.com/json/v501/advideos"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/advideos?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/advideos?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/advideos/add",
+          "batch_limit": {
+            "max_url_items": 10,
+            "max_binary_items": 1,
+            "source": "https://yandex.ru/dev/direct/doc/ru/advideos/add"
+          }
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/advideos/get"
+        }
+      }
+    },
+    "AgencyClients": {
+      "path": "agencyclients",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/agencyclients/agencyclients",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/agencyclients",
+        "v501": "https://api.direct.yandex.com/json/v501/agencyclients"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/agencyclients?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/agencyclients?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "addPassportOrganization": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/agencyclients/addPassportOrganization"
+        },
+        "addPassportOrganizationMember": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/agencyclients/addPassportOrganizationMember",
+          "limits": {
+            "invites_per_day": 10,
+            "scope": "PassportOrganizationLogin",
+            "source": "https://yandex.ru/dev/direct/doc/ru/agencyclients/addPassportOrganizationMember"
+          }
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/agencyclients/get"
+        },
+        "update": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/agencyclients/update"
+        }
+      },
+      "request_header_notes": [
+        "Для AgencyClients не передавать Client-Login; токен Authorization принадлежит представителю агентства.",
+        "addPassportOrganization требует Member-Authorization по документации метода."
+      ]
+    },
+    "AudienceTargets": {
+      "path": "audiencetargets",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/audiencetargets/audiencetargets",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/audiencetargets",
+        "v501": "https://api.direct.yandex.com/json/v501/audiencetargets"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/audiencetargets?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/audiencetargets?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/audiencetargets/add"
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/audiencetargets/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/audiencetargets/get"
+        },
+        "resume": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/audiencetargets/resume"
+        },
+        "setBids": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/audiencetargets/setBids"
+        },
+        "suspend": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/audiencetargets/suspend"
+        }
+      }
+    },
+    "Bids": {
+      "path": "bids",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/bids/bids",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/bids",
+        "v501": "https://api.direct.yandex.com/json/v501/bids"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/bids?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/bids?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/bids/get"
+        },
+        "set": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/bids/set"
+        },
+        "setAuto": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/bids/setAuto"
+        }
+      }
+    },
+    "Businesses": {
+      "path": "businesses",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/businesses/businesses",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/businesses",
+        "v501": "https://api.direct.yandex.com/json/v501/businesses"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/businesses?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/businesses?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/businesses/get"
+        }
+      }
+    },
+    "BidModifiers": {
+      "path": "bidmodifiers",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/bidmodifiers/bidmodifiers",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/bidmodifiers",
+        "v501": "https://api.direct.yandex.com/json/v501/bidmodifiers"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/bidmodifiers?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/bidmodifiers?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/bidmodifiers/add"
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/bidmodifiers/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/bidmodifiers/get"
+        },
+        "set": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/bidmodifiers/set"
+        }
+      }
+    },
+    "Campaigns": {
+      "path": "campaigns",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/campaigns/campaigns",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/campaigns",
+        "v501": "https://api.direct.yandex.com/json/v501/campaigns"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/campaigns?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/campaigns?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/campaigns/add",
+          "batch_limit": {
+            "max_items": 10,
+            "source": "https://yandex.ru/dev/direct/doc/ru/campaigns/add",
+            "note": "Лимит одного вызова, не лимит всей задачи. Остальные ограничения и состояние объектов — в документации метода."
+          }
+        },
+        "archive": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/campaigns/archive"
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/campaigns/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/campaigns/get"
+        },
+        "resume": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/campaigns/resume"
+        },
+        "suspend": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/campaigns/suspend"
+        },
+        "unarchive": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/campaigns/unarchive"
+        },
+        "update": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/campaigns/update"
+        }
+      }
+    },
+    "Changes": {
+      "path": "changes",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/changes/changes",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/changes",
+        "v501": "https://api.direct.yandex.com/json/v501/changes"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/changes?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/changes?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "checkDictionaries": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/changes/checkDictionaries"
+        },
+        "checkCampaigns": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/changes/checkCampaigns"
+        },
+        "check": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/changes/check"
+        }
+      },
+      "effect_note": "check/checkCampaigns/checkDictionaries сообщают о существующих изменениях и серверном времени; рекламные объекты не изменяют."
+    },
+    "Clients": {
+      "path": "clients",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/clients/clients",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/clients",
+        "v501": "https://api.direct.yandex.com/json/v501/clients"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/clients?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/clients?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/clients/get"
+        },
+        "update": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/clients/update"
+        }
+      }
+    },
+    "Creatives": {
+      "path": "creatives",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/creatives/creatives",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/creatives",
+        "v501": "https://api.direct.yandex.com/json/v501/creatives"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/creatives?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/creatives?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/creatives/add",
+          "scope_note": "Создание креативов видеодополнений по ID видео AdVideos; это не универсальный редактор всех типов креативов.",
+          "batch_limit": {
+            "max_items": 10,
+            "source": "https://yandex.ru/dev/direct/doc/ru/creatives/add",
+            "note": "Лимит одного вызова, не лимит всей задачи. Остальные ограничения и состояние объектов — в документации метода."
+          }
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/creatives/get"
+        }
+      }
+    },
+    "Dictionaries": {
+      "path": "dictionaries",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/dictionaries/dictionaries",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/dictionaries",
+        "v501": "https://api.direct.yandex.com/json/v501/dictionaries"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/dictionaries?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/dictionaries?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/dictionaries/get"
+        },
+        "getGeoRegions": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/dictionaries/getGeoRegions"
+        }
+      }
+    },
+    "Feeds": {
+      "path": "feeds",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/feeds/feeds",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/feeds",
+        "v501": "https://api.direct.yandex.com/json/v501/feeds"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/feeds?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/feeds?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/feeds/add",
+          "batch_limit": {
+            "max_items": 50,
+            "source": "https://yandex.ru/dev/direct/doc/ru/feeds/add",
+            "note": "Лимит одного вызова, не лимит всей задачи. Остальные ограничения и состояние объектов — в документации метода."
+          }
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/feeds/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/feeds/get"
+        },
+        "update": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/feeds/update"
+        }
+      }
+    },
+    "KeywordBids": {
+      "path": "keywordbids",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/keywordbids/keywordbids",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/keywordbids",
+        "v501": "https://api.direct.yandex.com/json/v501/keywordbids"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/keywordbids?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/keywordbids?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywordbids/get"
+        },
+        "set": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywordbids/set"
+        },
+        "setAuto": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywordbids/setAuto"
+        }
+      }
+    },
+    "Keywords": {
+      "path": "keywords",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/keywords/keywords",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/keywords",
+        "v501": "https://api.direct.yandex.com/json/v501/keywords"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/keywords?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/keywords?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywords/add"
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywords/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywords/get"
+        },
+        "resume": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywords/resume"
+        },
+        "suspend": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywords/suspend"
+        },
+        "update": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywords/update",
+          "batch_limit": {
+            "max_items": 1000,
+            "source": "https://yandex.ru/dev/direct/doc/ru/keywords/update",
+            "note": "Лимит одного вызова, не лимит всей задачи. Остальные ограничения и состояние объектов — в документации метода."
+          }
+        }
+      }
+    },
+    "KeywordsResearch": {
+      "path": "keywordsresearch",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/keywordsresearch/keywordsresearch",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/keywordsresearch",
+        "v501": "https://api.direct.yandex.com/json/v501/keywordsresearch"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/keywordsresearch?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/keywordsresearch?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "deduplicate": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywordsresearch/deduplicate",
+          "effect_note": "Вычисляет инструкции Add/Update/Delete по переданному массиву; не применяет их к ключам в кабинете. read означает отсутствие изменения рекламных объектов, а не отсутствие вычислений/расхода API-баллов."
+        },
+        "hasSearchVolume": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/keywordsresearch/hasSearchVolume",
+          "limits": {
+            "requests": 20,
+            "window_seconds": 60,
+            "scope": "advertiser",
+            "source": "https://yandex.ru/dev/direct/doc/ru/keywordsresearch/hasSearchVolume"
+          }
+        }
+      }
+    },
+    "NegativeKeywordSharedSets": {
+      "path": "negativekeywordsharedsets",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/negativekeywordsharedsets/negativekeywordsharedsets",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/negativekeywordsharedsets",
+        "v501": "https://api.direct.yandex.com/json/v501/negativekeywordsharedsets"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/negativekeywordsharedsets?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/negativekeywordsharedsets?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/negativekeywordsharedsets/add"
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/negativekeywordsharedsets/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/negativekeywordsharedsets/get"
+        },
+        "update": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/negativekeywordsharedsets/update"
+        }
+      }
+    },
+    "RetargetingLists": {
+      "path": "retargetinglists",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/retargetinglists/retargetinglists",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/retargetinglists",
+        "v501": "https://api.direct.yandex.com/json/v501/retargetinglists"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/retargetinglists?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/retargetinglists?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/retargetinglists/add"
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/retargetinglists/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/retargetinglists/get"
+        },
+        "update": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/retargetinglists/update"
+        }
+      }
+    },
+    "Sitelinks": {
+      "path": "sitelinks",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/sitelinks/sitelinks",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/sitelinks",
+        "v501": "https://api.direct.yandex.com/json/v501/sitelinks"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/sitelinks?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/sitelinks?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/sitelinks/add",
+          "batch_limit": {
+            "max_items": 1000,
+            "source": "https://yandex.ru/dev/direct/doc/ru/sitelinks/add",
+            "note": "Лимит одного вызова, не лимит всей задачи. Остальные ограничения и состояние объектов — в документации метода."
+          }
+        },
+        "delete": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/sitelinks/delete"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/sitelinks/get"
+        }
+      }
+    },
+    "Strategies": {
+      "path": "strategies",
+      "protocol": "json-rpc-style",
+      "source": "https://yandex.ru/dev/direct/doc/ru/strategies/strategies",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/strategies",
+        "v501": "https://api.direct.yandex.com/json/v501/strategies"
+      },
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/strategies?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/strategies?wsdl",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200,
+          "all_catalog_methods_present": true
+        }
+      },
+      "methods": {
+        "add": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/strategies/add"
+        },
+        "archive": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/strategies/archive"
+        },
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/strategies/get"
+        },
+        "unarchive": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/strategies/unarchive"
+        },
+        "update": {
+          "effect": "write",
+          "source": "https://yandex.ru/dev/direct/doc/ru/strategies/update"
+        }
+      }
+    },
+    "Reports": {
+      "path": "reports",
+      "protocol": "reports",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "default_version": "v501",
+      "endpoints": {
+        "v5": "https://api.direct.yandex.com/json/v5/reports",
+        "v501": "https://api.direct.yandex.com/json/v501/reports"
+      },
+      "source": "https://yandex.ru/dev/direct/doc/ru/reports",
+      "version_evidence": {
+        "v5": {
+          "source": "https://api.direct.yandex.com/v5/reports.xsd",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200
+        },
+        "v501": {
+          "source": "https://api.direct.yandex.com/v501/reports.xsd",
+          "check": "anonymous_public_schema_get",
+          "http_status": 200
+        }
+      },
+      "methods": {
+        "get": {
+          "effect": "read",
+          "source": "https://yandex.ru/dev/direct/doc/ru/reports",
+          "virtual": true,
+          "note": "Условное имя операции клиента; не отправлять поле method в API Reports."
+        }
+      },
+      "request_has_method_field": false,
+      "response_format": "TSV"
+    }
+  },
+  "reports": {
+    "effect": "read",
+    "path": "reports",
+    "protocol": "reports",
+    "http_method": "POST",
+    "request_envelope": {
+      "params": "ReportDefinition"
+    },
+    "method_field": false,
+    "response_format": "TSV",
+    "versions": [
+      "v5",
+      "v501"
+    ],
+    "default_version": "v501",
+    "endpoints": {
+      "v5": "https://api.direct.yandex.com/json/v5/reports",
+      "v501": "https://api.direct.yandex.com/json/v501/reports"
+    },
+    "source": "https://yandex.ru/dev/direct/doc/ru/reports",
+    "spec_source": "https://yandex.ru/dev/direct/doc/ru/spec",
+    "headers_source": "https://yandex.ru/dev/direct/doc/ru/headers",
+    "mode_source": "https://yandex.ru/dev/direct/doc/ru/mode",
+    "types_source": "https://yandex.ru/dev/direct/doc/ru/type",
+    "limits_source": "https://yandex.ru/dev/direct/doc/ru/restrictions",
+    "version_evidence": {
+      "v5": {
+        "source": "https://api.direct.yandex.com/v5/reports.xsd",
+        "check": "anonymous_public_schema_get",
+        "http_status": 200
+      },
+      "v501": {
+        "source": "https://api.direct.yandex.com/v501/reports.xsd",
+        "check": "anonymous_public_schema_get",
+        "http_status": 200
+      }
+    },
+    "types": [
+      "ACCOUNT_PERFORMANCE_REPORT",
+      "CAMPAIGN_PERFORMANCE_REPORT",
+      "ADGROUP_PERFORMANCE_REPORT",
+      "AD_PERFORMANCE_REPORT",
+      "CRITERIA_PERFORMANCE_REPORT",
+      "CUSTOM_REPORT",
+      "REACH_AND_FREQUENCY_PERFORMANCE_REPORT",
+      "SEARCH_QUERY_PERFORMANCE_REPORT"
+    ],
+    "request_headers": [
+      "Authorization",
+      "Client-Login",
+      "Accept-Language",
+      "processingMode",
+      "returnMoneyInMicros",
+      "skipReportHeader",
+      "skipColumnHeader",
+      "skipReportSummary",
+      "Accept-Encoding"
+    ],
+    "response_headers": [
+      "RequestId",
+      "retryIn",
+      "reportsInQueue"
+    ],
+    "http_statuses": {
+      "200": "report_ready",
+      "201": "queued",
+      "202": "still_processing"
+    },
+    "limits": {
+      "requests_per_10_seconds_per_user": 20,
+      "max_queued_offline_reports_per_user": 5,
+      "offline_retention_hours": 5,
+      "history_years_from_current_month": 3,
+      "search_query_history_days": 180
+    },
+    "notes": [
+      "Формирование отчёта создаёт временную задачу на стороне провайдера, но не изменяет рекламные объекты.",
+      "SEARCH_QUERY_PERFORMANCE_REPORT — только offline.",
+      "Для ожидания повторяют тот же запрос с учетом retryIn. Это правило не относится к повторам рекламных записей.",
+      "Доступность двух XSD не доказывает равенство схем и не является проверкой выполнения Reports в аккаунте."
+    ]
+  },
+  "deprecated": {
+    "AgencyClients": {
+      "methods": {
+        "add": {
+          "effect": "write",
+          "status": "unsupported",
+          "replacement": "addPassportOrganization",
+          "source": "https://yandex.ru/dev/direct/doc/ru/agencyclients/add",
+          "status_date": "2025-06-16",
+          "changelog_source": "https://yandex.ru/dev/direct/doc/ru/changelog"
+        }
+      }
+    },
+    "BidModifiers": {
+      "methods": {
+        "toggle": {
+          "effect": "write",
+          "status": "unsupported",
+          "source": "https://yandex.ru/dev/direct/doc/ru/changelog",
+          "status_date": "2025-11-13",
+          "note": "Страница toggle перенаправляется на главную; метод исключён из текущего оглавления и WSDL."
+        }
+      }
+    },
+    "Leads": {
+      "path": "leads",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "status": "unsupported",
+      "source": "https://yandex.ru/dev/direct/doc/ru/leads/leads",
+      "methods": {
+        "get": {
+          "effect": "read",
+          "status": "unsupported",
+          "source": "https://yandex.ru/dev/direct/doc/ru/leads/get"
+        }
+      }
+    },
+    "TurboPages": {
+      "path": "turbopages",
+      "versions": [
+        "v5",
+        "v501"
+      ],
+      "status": "unsupported",
+      "source": "https://yandex.ru/dev/direct/doc/ru/turbopages/get",
+      "methods": {
+        "get": {
+          "effect": "read",
+          "status": "unsupported",
+          "source": "https://yandex.ru/dev/direct/doc/ru/turbopages/get"
+        }
+      }
+    }
+  },
+  "unknowns": [
+    "Нет проверки методов на аккаунте, прав текущего токена и квот конкретного рекламодателя.",
+    "Не проверена эквивалентность всех параметров v5/v501; для ЕПК/товарных форматов нужны соответствующие схемы v501.",
+    "Не выполнен аудит всех UI-функций, полей, enum и исторических снятых сервисов.",
+    "В старых документах встречаются VCards, SmartAdTargets и другие исторические API; отсутствие в текущем оглавлении не доказывает ни поддержку, ни полный список исторических возможностей."
+  ]
+}

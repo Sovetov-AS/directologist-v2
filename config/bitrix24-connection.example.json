@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "portal_origin": "https://YOUR_PORTAL.bitrix24.ru",
+  "auth": "incoming-webhook",
+  "writes_enabled": false,
+  "credential": {
+    "backend": "macos-keychain",
+    "service": "directologist4/bitrix24",
+    "account": "YOUR_KEYCHAIN_ACCOUNT"
+  },
+  "note": "Public template. Configure your own Keychain references. Writes disabled. Validate portal-specific payment rules before use.",
+  "payment_evidence": {
+    "basis": "owner_confirmed_paid_invoice_stage",
+    "owner_statement": "Переводят счёт в «Оплачен»",
+    "confirmed_at": "2026-11-12",
+    "entity_type_id": 31,
+    "paid_stage_ids": [
+      "DT31_2:P"
+    ],
+    "invoice_id_field": "id",
+    "amount_field": "opportunity",
+    "currency_field": "currencyId",
+    "deal_link_field": "parentId2",
+    "deduplication": "invoice id; repeated paid-stage history rows are not new payments",
+    "date_source": "crm.stagehistory.list CREATED_TIME for verified paid-stage transitions; not updatedTime or closedate",
+    "meaning": "Operational payment evidence under owner CRM practice; no bank-statement reconciliation performed"
+  }
+}

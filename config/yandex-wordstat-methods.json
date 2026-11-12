@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-11-12",
+  "provider": "Yandex Search API v2 / Wordstat",
+  "endpoint": "https://searchapi.api.cloud.yandex.net",
+  "protocol": "REST JSON; gRPC equivalent methods documented",
+  "auth": {
+    "header": "Authorization",
+    "api_key_scheme": "Api-Key",
+    "iam_scheme": "Bearer",
+    "role": "search-api.webSearch.user",
+    "api_key_scope": "yc.search-api.execute",
+    "folder_id": "Optional for service account; resolved automatically when omitted. User IAM requests must specify the intended folderId.",
+    "source": "https://aistudio.yandex.ru/ru/docs/ai-studio/api-ref/authentication"
+  },
+  "sources": [
+    "https://aistudio.yandex.ru/ru/docs/search-api/concepts/wordstat",
+    "https://aistudio.yandex.ru/ru/docs/search-api/api-ref/Wordstat/",
+    "https://aistudio.yandex.ru/ru/docs/search-api/pricing",
+    "https://aistudio.yandex.ru/ru/docs/search-api/concepts/limits",
+    "https://raw.githubusercontent.com/yandex-cloud/cloudapi/master/yandex/cloud/searchapi/v2/wordstat_service.proto",
+    "https://yandex.ru/support2/wordstat/ru/content/api-wordstat"
+  ],
+  "verification": {
+    "method": "Official current REST reference compared with provider protobuf service",
+    "protobuf_sha256": "2a8f19112441d9e60b1c80c495f589b8c8e0abd5333805727c735c0c522afdeb",
+    "rpc_count": 4,
+    "live_api_calls_in_catalog_task": 0
+  },
+  "operations": [
+    {
+      "id": "getTop",
+      "method": "POST",
+      "path": "/v2/wordstat/topRequests",
+      "effect": "read",
+      "group": "Wordstat",
+      "paid": true,
+      "source": "https://aistudio.yandex.ru/ru/docs/search-api/api-ref/Wordstat/getTop",
+      "grpc_method": "yandex.cloud.searchapi.v2.WordstatService/GetTop",
+      "parameters": [
+        "phrase",
+        "numPhrases",
+        "regions",
+        "devices",
+        "folderId"
+      ],
+      "required_body_fields": [
+        "phrase"
+      ],
+      "price_rub_per_1000_requests_including_vat": 20,
+      "smoke_body": {
+        "phrase": "внедрение битрикс24",
+        "numPhrases": 1,
+        "regions": [
+          "225"
+        ],
+        "devices": [
+          "DEVICE_ALL"
+        ]
+      }
+    },
+    {
+      "id": "getDynamics",
+      "method": "POST",
+      "path": "/v2/wordstat/dynamics",
+      "effect": "read",
+      "group": "Wordstat",
+      "paid": true,
+      "source": "https://aistudio.yandex.ru/ru/docs/search-api/api-ref/Wordstat/getDynamics",
+      "grpc_method": "yandex.cloud.searchapi.v2.WordstatService/GetDynamics",
+      "parameters": [
+        "phrase",
+        "period",
+        "fromDate",
+        "toDate",
+        "regions",
+        "devices",
+        "folderId"
+      ],
+      "required_body_fields": [
+        "phrase",
+        "period",
+        "fromDate"
+      ],
+      "price_rub_per_1000_requests_including_vat": 20,
+      "smoke_body": {
+        "phrase": "внедрение битрикс24",
+        "period": "PERIOD_MONTHLY",
+        "fromDate": "2026-09-01T00:00:00Z",
+        "toDate": "2026-09-30T00:00:00Z",
+        "regions": [
+          "225"
+        ],
+        "devices": [
+          "DEVICE_ALL"
+        ]
+      }
+    },
+    {
+      "id": "getRegionsDistribution",
+      "method": "POST",
+      "path": "/v2/wordstat/regions",
+      "effect": "read",
+      "group": "Wordstat",
+      "paid": true,
+      "source": "https://aistudio.yandex.ru/ru/docs/search-api/api-ref/Wordstat/getRegionsDistribution",
+      "grpc_method": "yandex.cloud.searchapi.v2.WordstatService/GetRegionsDistribution",
+      "parameters": [
+        "phrase",
+        "region",
+        "devices",
+        "folderId"
+      ],
+      "required_body_fields": [
+        "phrase"
+      ],
+      "price_rub_per_1000_requests_including_vat": 50,
+      "smoke_body": {
+        "phrase": "внедрение битрикс24",
+        "region": "REGION_REGIONS",
+        "devices": [
+          "DEVICE_ALL"
+        ]
+      }
+    },
+    {
+      "id": "getRegionsTree",
+      "method": "POST",
+      "path": "/v2/wordstat/getRegionsTree",
+      "effect": "read",
+      "group": "Wordstat",
+      "paid": false,
+      "source": "https://aistudio.yandex.ru/ru/docs/search-api/api-ref/Wordstat/getRegionsTree",
+      "grpc_method": "yandex.cloud.searchapi.v2.WordstatService/GetRegionsTree",
+      "parameters": [
+        "folderId"
+      ],
+      "required_body_fields": [],
+      "price_rub_per_1000_requests_including_vat": 0,
+      "smoke_body": {}
+    }
+  ],
+  "provider_status": {
+    "observed_at": "2026-11-12",
+    "statistics_unavailable_after": "2026-10-07",
+    "note": "Provider says methods continue responding. Successful transport does not establish fresh statistics. Do not permanently enforce this incident as a client date limit.",
+    "source": "https://aistudio.yandex.ru/ru/docs/search-api/concepts/wordstat"
+  },
+  "pricing": {
+    "currency": "RUB",
+    "unit": "one request; table prices per 1000",
+    "vat_included": true,
+    "source": "https://aistudio.yandex.ru/ru/docs/search-api/pricing",
+    "four_method_smoke_estimate_rub": 0.09,
+    "estimate_not_billing_proof": true
+  },
+  "provider_quotas": {
+    "published_defaults": {
+      "statistics_requests_per_second": 10,
+      "statistics_requests_per_hour": 100
+    },
+    "changeable_by_provider_support": true,
+    "current_account_values_not_read": true,
+    "source": "https://aistudio.yandex.ru/ru/docs/search-api/concepts/limits"
+  },
+  "provider_parameter_limits": {
+    "getTop.numPhrases": {
+      "min": 1,
+      "max": 2000,
+      "documented_default": 50
+    },
+    "getTop.associations_max": 20,
+    "phrase_max_characters": 400,
+    "getTop.regions_max": 100,
+    "getDynamics.regions_max": 100,
+    "getTop.devices_max": 3,
+    "getDynamics.devices_max": 3,
+    "notes": [
+      "No pagination field is published for Wordstat. A top list of 2000 is not complete demand.",
+      "Generic web-search result limit 250 must not replace Wordstat getTop limit 2000.",
+      "These are documentation metadata, not local task quotas."
+    ]
+  },
+  "historical_api": {
+    "endpoint": "https://api.wordstat.yandex.net",
+    "status": "Not enabled in current catalog; Russian official landing page directs users to Yandex Search API. Availability of an old translated reference does not verify current endpoint support.",
+    "source": "https://yandex.ru/support2/wordstat/ru/content/api-wordstat"
+  },
+  "scope": "All four current published WordstatService methods; not other Yandex Search API search/generative/image products, nor all fields of the Wordstat website."
+}
